@@ -1,40 +1,63 @@
-# HT Group - Dashboard Application
+# HT Group Dashboard
 
-A modern web application built with Next.js, featuring role-based authentication, dashboard components, and a clean, maintainable architecture.
+A comprehensive business management dashboard for PT companies with invoice generation, user management, and multi-company navigation system.
 
-## Features
+## 🚀 Features
 
-- 🔐 **Authentication System**: NextAuth.js with database integration
-- 👥 **Role-Based Access Control**: Three user roles (Super Admin, Admin, Member)
-- 🎨 **Modern UI**: shadcn/ui components with Tailwind CSS
-- 📊 **Dashboard**: Interactive dashboard with charts and data tables
-- 🛡️ **Protected Routes**: Middleware-based route protection
-- 🗄️ **Database**: PostgreSQL with Prisma ORM
-- 🔒 **Security**: Password hashing with bcryptjs
+### 🏢 **Multi-Company Management**
+- **4 PT Companies**: PT. HUSNI TAMRIN KERINCI, PT. TUAH ANDALAN MELAYU, PT. NILO ENG, PT. ZAKIYAH TALITA ANGGUN
+- **Hierarchical Navigation**: Company-based sidebar with expandable sub-menus
+- **Dedicated Pages**: Individual pages for each business section
 
-## Tech Stack
+### 📄 **Advanced Invoice System**
+- **Multi-Type Invoices**: Pengajian, Tagihan, Biaya Operasional, Biaya Lain-lain
+- **Professional PDF Generation**: High-quality invoices matching business templates
+- **Automatic Calculations**: Tax calculations (PPN 11%, PPh 23 2%)
+- **Type-Specific Numbering**: Different invoice prefixes per type
 
-- **Framework**: Next.js 15 with App Router
-- **Authentication**: NextAuth.js
-- **Database**: PostgreSQL with Prisma
-- **UI Components**: shadcn/ui
-- **Styling**: Tailwind CSS
-- **TypeScript**: Full type safety
-- **Icons**: Lucide React
+### 🔐 **Authentication & Authorization**
+- **Role-Based Access Control**: Super Admin, Admin, Member roles
+- **NextAuth.js Integration**: Secure authentication system
+- **Protected Routes**: Middleware-based route protection
 
-## Getting Started
+### 🎨 **Modern UI/UX**
+- **Responsive Design**: Works on all screen sizes
+- **Dark/Light Mode**: Theme switching capability
+- **Professional Interface**: Clean, modern dashboard design
+- **Interactive Components**: Smooth animations and transitions
+
+## 🛠️ Tech Stack
+
+### **Frontend**
+- **Next.js 15**: React framework with App Router
+- **TypeScript**: Type-safe development
+- **Tailwind CSS**: Utility-first CSS framework
+- **Shadcn/ui**: Modern UI component library
+- **Lucide React**: Beautiful icons
+
+### **Backend**
+- **Prisma ORM**: Database management and migrations
+- **Supabase**: Cloud PostgreSQL database
+- **NextAuth.js**: Authentication and session management
+- **Puppeteer**: PDF generation engine
+
+### **Database**
+- **PostgreSQL**: Relational database via Supabase
+- **Connection Pooling**: Optimized database connections
+- **Schema Management**: Prisma-based migrations
+
+## 📦 Installation
 
 ### Prerequisites
-
 - Node.js 18+
-- PostgreSQL database
 - npm or yarn
+- Git
 
-### Installation
+### Setup Instructions
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/novryanda/ht-group.git
    cd ht-group
    ```
 
@@ -113,6 +136,47 @@ src/
 2. **Session Management**: NextAuth.js manages sessions with JWT strategy
 3. **Route Protection**: Middleware protects routes based on authentication status
 4. **Role-Based Access**: Components and pages check user roles for access control
+
+## 🏗️ Project Structure
+
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── api/               # API routes
+│   ├── companies/         # Company-specific pages
+│   ├── dashboard/         # Main dashboard
+│   └── login/            # Authentication pages
+├── components/            # Reusable UI components
+│   ├── ui/               # Base UI components
+│   ├── auth/             # Authentication components
+│   └── forms/            # Form components
+├── lib/                  # Utility libraries
+├── service/              # Business logic services
+├── types/                # TypeScript type definitions
+├── mock/                 # Mock data for development
+└── generated/            # Generated Prisma client
+```
+
+## 📝 Documentation
+
+- [Invoice System Documentation](./INVOICE_SYSTEM.md)
+- [Dedicated Pages Implementation](./DEDICATED_PAGES_IMPLEMENTATION.md)
+- [Supabase Migration Guide](./SUPABASE_MIGRATION.md)
+- [Next.js 15 Fixes](./NEXTJS15_FIXES.md)
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 👨‍💻 Author
+
+**Novryanda**
+- GitHub: [@novryanda](https://github.com/novryanda)
+- Repository: [ht-group](https://github.com/novryanda/ht-group)
 
 ## Role-Based Access Control
 
