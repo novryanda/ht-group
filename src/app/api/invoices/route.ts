@@ -49,9 +49,9 @@ export async function POST(request: NextRequest) {
     const validationResult = invoiceSchema.safeParse(body)
     if (!validationResult.success) {
       return NextResponse.json(
-        { 
+        {
           error: 'Validation failed',
-          details: validationResult.error.errors
+          details: validationResult.error.issues
         },
         { status: 400 }
       )
@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
     const invoices = await InvoiceService.getInvoicesByCompany(
       companyId,
       session.user.id,
-      invoiceType
+      invoiceType || undefined
     )
 
     return NextResponse.json({

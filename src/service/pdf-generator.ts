@@ -293,7 +293,7 @@ export class PDFGeneratorService {
         }
       })
 
-      return pdfBuffer
+      return Buffer.from(pdfBuffer)
     } finally {
       await browser.close()
     }

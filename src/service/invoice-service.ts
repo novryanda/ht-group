@@ -145,8 +145,17 @@ export class InvoiceService {
       throw new Error('Invoice not found')
     }
 
+    // Map Prisma enum to TypeScript type
+    const invoiceType = {
+      'PENGAJIAN': 'pengajian',
+      'TAGIHAN': 'tagihan',
+      'BIAYA_OPERASIONAL': 'biaya_operasional',
+      'BIAYA_LAIN': 'biaya_lain'
+    }[invoice.type] as InvoiceType
+
     // Prepare form data for PDF generation
     const formData: InvoiceFormData = {
+      type: invoiceType,
       nomorReferensi: invoice.nomorReferensi,
       nomorPR: invoice.nomorPR,
       nomorPO: invoice.nomorPO,
@@ -245,12 +254,20 @@ export class InvoiceService {
     status: 'draft' | 'approved' | 'sent' | 'paid',
     userId: string
   ) {
+    // Map status to Prisma enum
+    const prismaStatus = {
+      'draft': 'DRAFT',
+      'approved': 'APPROVED',
+      'sent': 'SENT',
+      'paid': 'PAID'
+    }[status] as any
+
     return await prisma.invoice.update({
       where: {
         id: invoiceId,
         createdBy: userId
       },
-      data: { status }
+      data: { status: prismaStatus }
     })
   }
 }

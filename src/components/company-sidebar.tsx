@@ -17,10 +17,10 @@ import { companies } from "@/mock/companies"
 import { useCompanyNavigation } from "@/hooks/use-company-navigation"
 
 interface CompanySidebarProps {
-  variant?: "default" | "inset"
+  variant?: "sidebar" | "floating" | "inset"
 }
 
-export function CompanySidebar({ variant = "default" }: CompanySidebarProps) {
+export function CompanySidebar({ variant = "sidebar" }: CompanySidebarProps) {
   const [navigationState, navigationActions] = useCompanyNavigation()
 
   const handleSelectItem = (itemKey: string, companyId: string) => {
