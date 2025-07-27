@@ -1,0 +1,171 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Enum for user roles
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  MEMBER
+}
+
+// User model with role-based access control
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?   // For credentials login
+  role          UserRole  @default(MEMBER)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // NextAuth.js relations
+  accounts Account[]
+  sessions Session[]
+
+  // Invoice relations
+  invoices Invoice[]
+
+  @@map("users")
+}
+
+// NextAuth.js Account model
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+// NextAuth.js Session model
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// NextAuth.js VerificationToken model
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verificationtokens")
+}
+
+// Invoice Status Enum
+enum InvoiceStatus {
+  DRAFT
+  APPROVED
+  SENT
+  PAID
+  CANCELLED
+}
+
+// Invoice Type Enum
+enum InvoiceType {
+  PENGAJIAN
+  TAGIHAN
+  BIAYA_OPERASIONAL
+  BIAYA_LAIN
+}
+
+// Invoice model for multiple invoice types
+model Invoice {
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique
+
+  // Invoice Type and Company Information
+  type          InvoiceType   @default(PENGAJIAN)
+  companyId     String
+  companyName   String
+
+  // Basic Invoice Details
+  date          DateTime      @default(now())
+  poNum         String?
+  subject       String?
+  periode       String?
+
+  // Form Data
+  nomorReferensi String
+  nomorPR       String
+  nomorPO       String
+  nomorSes      String
+  jobDescription String
+  namaPekerjaan String
+  qty           Int
+  rate          Decimal       @db.Decimal(15, 2)
+
+  // Calculations
+  subtotal      Decimal       @db.Decimal(15, 2)
+  ppn11         Decimal       @db.Decimal(15, 2)
+  ppn23         Decimal       @db.Decimal(15, 2)
+  netInvoice    Decimal       @db.Decimal(15, 2)
+
+  // Approval
+  approvalSignature String
+  approvalName      String?
+  approvalTitle     String?
+
+  // Status and Metadata
+  status        InvoiceStatus @default(DRAFT)
+  pdfPath       String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  createdBy     String
+
+  // Relations
+  creator       User          @relation(fields: [createdBy], references: [id])
+  lineItems     InvoiceLineItem[]
+
+  @@map("invoices")
+}
+
+// Invoice Line Items
+model InvoiceLineItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Int
+  rate        Decimal @db.Decimal(15, 2)
+  amount      Decimal @db.Decimal(15, 2)
+
+  // Relations
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("invoice_line_items")
+}
