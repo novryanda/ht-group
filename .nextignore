@@ -1,0 +1,25 @@
+# Windows system directories
+C:\Users\*\Application Data\**
+C:\Users\*\AppData\**
+C:\ProgramData\**
+C:\Windows\**
+
+# Development directories
+node_modules/
+.git/
+.next/
+dist/
+build/
+
+# IDE directories
+.vscode/
+.idea/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Temporary files
+*.tmp
+*.temp
+*.log
