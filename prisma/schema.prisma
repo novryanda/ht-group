@@ -1,0 +1,870 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    // NOTE: When using mysql or sqlserver, uncomment the @db.Text annotations in model Account below
+    // Further reading:
+    // https://next-auth.js.org/adapters/prisma#create-the-prisma-schema
+    // https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#string
+    url       = env("DATABASE_URL")
+    directUrl = env("DIRECT_URL")
+}
+
+// ERP Core Models
+model Company {
+    id          String @id @default(cuid())
+    code        String @unique // PT-NILO, PT-ZTA, PT-TAM, PT-HTK
+    name        String
+    description String?
+    isActive    Boolean @default(true)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    units       Unit[]
+    employees   Employee[]
+    workOrders  WorkOrder[]
+    jobs        Job[]
+    invoices    Invoice[]
+    payrollRuns PayrollRun[]
+    journals    Journal[]
+
+    @@index([code])
+}
+
+model Unit {
+    id          String @id @default(cuid())
+    code        String // hvac-rittal, hvac-split, fabrikasi, efluen, cutting-grass
+    name        String
+    type        UnitType
+    description String?
+    isActive    Boolean @default(true)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    company     Company @relation(fields: [companyId], references: [id])
+    companyId   String
+    employees   Employee[]
+    workOrders  WorkOrder[]
+    jobs        Job[]
+    assets      Asset[]
+
+    @@unique([companyId, code])
+    @@index([companyId, type])
+}
+
+enum UnitType {
+    HVAC_RITTAL
+    HVAC_SPLIT
+    FABRIKASI
+    EFLUEN
+    CUTTING_GRASS
+}
+
+model Employee {
+    id           String @id @default(cuid())
+    employeeCode String @unique
+    name         String
+    email        String? @unique
+    phone        String?
+    position     String
+    department   String
+    role         UserRole @default(OPERATOR)
+    isActive     Boolean @default(true)
+    hireDate     DateTime
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
+
+    // Relations
+    company      Company @relation(fields: [companyId], references: [id])
+    companyId    String
+    unit         Unit? @relation(fields: [unitId], references: [id])
+    unitId       String?
+    user         User? @relation(fields: [userId], references: [id])
+    userId       String? @unique
+
+    // Work Relations
+    assignedWorkOrders WorkOrder[] @relation("AssignedTechnician")
+    createdWorkOrders  WorkOrder[] @relation("CreatedBy")
+    timesheets         Timesheet[]
+    payrollItems       PayrollItem[]
+    payslips           Payslip[]
+
+    @@index([companyId])
+    @@index([unitId])
+    @@index([employeeCode])
+}
+
+enum UserRole {
+    GROUP_VIEWER
+    EXECUTIVE
+    PT_MANAGER
+    UNIT_SUPERVISOR
+    TECHNICIAN
+    OPERATOR
+    HR
+    FINANCE_AR
+    FINANCE_AP
+    GL_ACCOUNTANT
+}
+
+// Necessary for Next auth
+model Account {
+    id                       String  @id @default(cuid())
+    userId                   String
+    type                     String
+    provider                 String
+    providerAccountId        String
+    refresh_token            String? // @db.Text
+    access_token             String? // @db.Text
+    expires_at               Int?
+    token_type               String?
+    scope                    String?
+    id_token                 String? // @db.Text
+    session_state            String?
+    user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    refresh_token_expires_in Int?
+
+    @@unique([provider, providerAccountId])
+}
+
+model Session {
+    id           String   @id @default(cuid())
+    sessionToken String   @unique
+    userId       String
+    expires      DateTime
+    user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+    id            String    @id @default(cuid())
+    name          String?
+    email         String?   @unique
+    emailVerified DateTime?
+    image         String?
+    accounts      Account[]
+    sessions      Session[]
+    employee      Employee?
+}
+
+model VerificationToken {
+    identifier String
+    token      String   @unique
+    expires    DateTime
+
+    @@unique([identifier, token])
+}
+
+// Asset Management
+model Asset {
+    id           String @id @default(cuid())
+    assetCode    String @unique
+    name         String
+    type         AssetType
+    brand        String?
+    model        String?
+    serialNumber String?
+    location     String?
+    status       AssetStatus @default(ACTIVE)
+    installDate  DateTime?
+    warrantyEnd  DateTime?
+    description  String?
+    createdAt    DateTime @default(now())
+    updatedAt    DateTime @updatedAt
+
+    // Relations
+    unit         Unit @relation(fields: [unitId], references: [id])
+    unitId       String
+    workOrders   WorkOrder[]
+    maintenanceSchedules MaintenanceSchedule[]
+
+    @@index([unitId])
+    @@index([assetCode])
+    @@index([type])
+}
+
+enum AssetType {
+    AC_RITTAL
+    AC_SPLIT
+    MACHINERY
+    EQUIPMENT
+    VEHICLE
+    OTHER
+}
+
+enum AssetStatus {
+    ACTIVE
+    MAINTENANCE
+    BROKEN
+    RETIRED
+}
+
+// Work Order Management
+model WorkOrder {
+    id          String @id @default(cuid())
+    woNumber    String @unique
+    title       String
+    description String?
+    type        WorkOrderType
+    priority    Priority @default(MEDIUM)
+    status      WorkOrderStatus @default(DRAFT)
+    scheduledDate DateTime?
+    startDate   DateTime?
+    endDate     DateTime?
+    estimatedHours Float?
+    actualHours    Float?
+    cost           Float? @default(0)
+    notes          String?
+    createdAt      DateTime @default(now())
+    updatedAt      DateTime @updatedAt
+
+    // Relations
+    company        Company @relation(fields: [companyId], references: [id])
+    companyId      String
+    unit           Unit @relation(fields: [unitId], references: [id])
+    unitId         String
+    asset          Asset? @relation(fields: [assetId], references: [id])
+    assetId        String?
+    assignedTo     Employee? @relation("AssignedTechnician", fields: [assignedToId], references: [id])
+    assignedToId   String?
+    createdBy      Employee @relation("CreatedBy", fields: [createdById], references: [id])
+    createdById    String
+
+    // Work Order Details
+    checklists     ChecklistResult[]
+    parts          WorkOrderPart[]
+    timesheets     Timesheet[]
+    invoices       Invoice[] @relation("WorkOrderInvoices")
+
+    @@index([companyId])
+    @@index([unitId])
+    @@index([woNumber])
+    @@index([status])
+}
+
+enum WorkOrderType {
+    PREVENTIVE_MAINTENANCE
+    CORRECTIVE_MAINTENANCE
+    INSPECTION
+    REPAIR
+    INSTALLATION
+}
+
+enum WorkOrderStatus {
+    DRAFT
+    IN_PROGRESS
+    WAITING_REVIEW
+    APPROVED
+    BILLED
+    CLOSED
+    CANCELLED
+}
+
+enum Priority {
+    LOW
+    MEDIUM
+    HIGH
+    URGENT
+}
+
+// Maintenance Scheduling
+model MaintenanceSchedule {
+    id          String @id @default(cuid())
+    name        String
+    description String?
+    frequency   String // "weekly", "monthly", "quarterly", etc.
+    isActive    Boolean @default(true)
+    nextDue     DateTime
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    asset       Asset @relation(fields: [assetId], references: [id])
+    assetId     String
+    checklist   ChecklistTemplate? @relation(fields: [checklistId], references: [id])
+    checklistId String?
+
+    @@index([assetId])
+    @@index([nextDue])
+}
+
+// Checklist Management
+model ChecklistTemplate {
+    id          String @id @default(cuid())
+    name        String
+    description String?
+    isActive    Boolean @default(true)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    items       ChecklistItem[]
+    results     ChecklistResult[]
+    schedules   MaintenanceSchedule[]
+
+    @@index([name])
+}
+
+model ChecklistItem {
+    id          String @id @default(cuid())
+    sequence    Int
+    description String
+    type        ChecklistItemType @default(CHECKBOX)
+    isRequired  Boolean @default(true)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    template    ChecklistTemplate @relation(fields: [templateId], references: [id])
+    templateId  String
+    results     ChecklistItemResult[]
+
+    @@index([templateId, sequence])
+}
+
+enum ChecklistItemType {
+    CHECKBOX
+    TEXT
+    NUMBER
+    PHOTO
+}
+
+model ChecklistResult {
+    id          String @id @default(cuid())
+    completedAt DateTime @default(now())
+    notes       String?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
+    workOrderId String
+    template    ChecklistTemplate @relation(fields: [templateId], references: [id])
+    templateId  String
+    items       ChecklistItemResult[]
+
+    @@index([workOrderId])
+}
+
+model ChecklistItemResult {
+    id          String @id @default(cuid())
+    value       String? // checkbox: "true"/"false", text: actual text, number: numeric value
+    notes       String?
+    photoUrl    String?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    result      ChecklistResult @relation(fields: [resultId], references: [id])
+    resultId    String
+    item        ChecklistItem @relation(fields: [itemId], references: [id])
+    itemId      String
+
+    @@unique([resultId, itemId])
+}
+
+// Parts & Material Management
+model Part {
+    id          String @id @default(cuid())
+    partCode    String @unique
+    name        String
+    description String?
+    category    String?
+    unit        String // pcs, kg, liter, etc.
+    unitPrice   Float @default(0)
+    stockQty    Float @default(0)
+    minStock    Float @default(0)
+    isActive    Boolean @default(true)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    workOrderParts WorkOrderPart[]
+    materialIssues MaterialIssue[]
+
+    @@index([partCode])
+    @@index([category])
+}
+
+model WorkOrderPart {
+    id          String @id @default(cuid())
+    quantity    Float
+    unitPrice   Float
+    totalPrice  Float
+    notes       String?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
+    workOrderId String
+    part        Part @relation(fields: [partId], references: [id])
+    partId      String
+
+    @@index([workOrderId])
+}
+
+// Job/Project Management
+model Job {
+    id          String @id @default(cuid())
+    jobNumber   String @unique
+    title       String
+    description String?
+    type        JobType
+    status      JobStatus @default(OPEN)
+    startDate   DateTime?
+    endDate     DateTime?
+    estimatedCost Float? @default(0)
+    actualCost    Float? @default(0)
+    progress      Float @default(0) // percentage 0-100
+    customerName  String?
+    contractValue Float? @default(0)
+    notes         String?
+    createdAt     DateTime @default(now())
+    updatedAt     DateTime @updatedAt
+
+    // Relations
+    company       Company @relation(fields: [companyId], references: [id])
+    companyId     String
+    unit          Unit @relation(fields: [unitId], references: [id])
+    unitId        String
+
+    // Job Details
+    timesheets    Timesheet[]
+    materialIssues MaterialIssue[]
+    invoices      Invoice[] @relation("JobInvoices")
+
+    @@index([companyId])
+    @@index([unitId])
+    @@index([jobNumber])
+    @@index([status])
+}
+
+enum JobType {
+    FABRICATION
+    EFFLUENT_TREATMENT
+    CUTTING_GRASS
+    MAINTENANCE_PROJECT
+    INSTALLATION
+    OTHER
+}
+
+enum JobStatus {
+    OPEN
+    IN_PROGRESS
+    FOR_BILLING
+    BILLED
+    CLOSED
+    CANCELLED
+}
+
+// Timesheet Management
+model Timesheet {
+    id          String @id @default(cuid())
+    date        DateTime
+    startTime   DateTime
+    endTime     DateTime
+    regularHours Float @default(0)
+    overtimeHours Float @default(0)
+    description String?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    employee    Employee @relation(fields: [employeeId], references: [id])
+    employeeId  String
+    workOrder   WorkOrder? @relation(fields: [workOrderId], references: [id])
+    workOrderId String?
+    job         Job? @relation(fields: [jobId], references: [id])
+    jobId       String?
+
+    @@index([employeeId])
+    @@index([date])
+}
+
+model MaterialIssue {
+    id          String @id @default(cuid())
+    issueNumber String @unique
+    quantity    Float
+    unitPrice   Float
+    totalPrice  Float
+    purpose     String?
+    issuedAt    DateTime @default(now())
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    part        Part @relation(fields: [partId], references: [id])
+    partId      String
+    job         Job @relation(fields: [jobId], references: [id])
+    jobId       String
+
+    @@index([jobId])
+    @@index([issueNumber])
+}
+
+// HR & Payroll Management
+model PayrollRun {
+    id          String @id @default(cuid())
+    runNumber   String @unique
+    period      String // "2024-01", "2024-02", etc.
+    startDate   DateTime
+    endDate     DateTime
+    status      PayrollStatus @default(DRAFT)
+    totalGross  Float @default(0)
+    totalNet    Float @default(0)
+    totalTax    Float @default(0)
+    processedAt DateTime?
+    approvedAt  DateTime?
+    postedAt    DateTime?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    company     Company @relation(fields: [companyId], references: [id])
+    companyId   String
+    items       PayrollItem[]
+
+    @@index([companyId])
+    @@index([period])
+    @@index([status])
+}
+
+enum PayrollStatus {
+    DRAFT
+    IN_REVIEW
+    APPROVED
+    POSTED
+    CLOSED
+}
+
+model PayrollItem {
+    id              String @id @default(cuid())
+    basicSalary     Float @default(0)
+    allowances      Float @default(0)
+    overtime        Float @default(0)
+    grossPay        Float @default(0)
+    tax             Float @default(0)
+    bpjs            Float @default(0)
+    otherDeductions Float @default(0)
+    netPay          Float @default(0)
+    workingDays     Int @default(0)
+    overtimeHours   Float @default(0)
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+
+    // Relations
+    payrollRun      PayrollRun @relation(fields: [payrollRunId], references: [id])
+    payrollRunId    String
+    employee        Employee @relation(fields: [employeeId], references: [id])
+    employeeId      String
+
+    @@unique([payrollRunId, employeeId])
+    @@index([payrollRunId])
+}
+
+model Payslip {
+    id          String @id @default(cuid())
+    slipNumber  String @unique
+    period      String
+    basicSalary Float
+    allowances  Float
+    overtime    Float
+    grossPay    Float
+    tax         Float
+    bpjs        Float
+    otherDeductions Float
+    netPay      Float
+    generatedAt DateTime @default(now())
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    employee    Employee @relation(fields: [employeeId], references: [id])
+    employeeId  String
+
+    @@index([employeeId])
+    @@index([period])
+}
+
+// Finance Management
+model Customer {
+    id          String @id @default(cuid())
+    code        String @unique
+    name        String
+    email       String?
+    phone       String?
+    address     String?
+    taxId       String?
+    isActive    Boolean @default(true)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    invoices    Invoice[]
+
+    @@index([code])
+    @@index([name])
+}
+
+model Vendor {
+    id          String @id @default(cuid())
+    code        String @unique
+    name        String
+    email       String?
+    phone       String?
+    address     String?
+    taxId       String?
+    isActive    Boolean @default(true)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    bills       Bill[]
+
+    @@index([code])
+    @@index([name])
+}
+
+model Invoice {
+    id              String @id @default(cuid())
+    invoiceNumber   String @unique
+    type            InvoiceType @default(SALES)
+    status          InvoiceStatus @default(DRAFT)
+    issueDate       DateTime
+    dueDate         DateTime
+    subtotal        Float @default(0)
+    taxAmount       Float @default(0)
+    totalAmount     Float @default(0)
+    paidAmount      Float @default(0)
+    remainingAmount Float @default(0)
+    description     String?
+    notes           String?
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+
+    // Relations
+    company         Company @relation(fields: [companyId], references: [id])
+    companyId       String
+    customer        Customer? @relation(fields: [customerId], references: [id])
+    customerId      String?
+    workOrders      WorkOrder[] @relation("WorkOrderInvoices")
+    jobs            Job[] @relation("JobInvoices")
+
+    // Invoice Details
+    items           InvoiceItem[]
+    payments        Payment[]
+
+    @@index([companyId])
+    @@index([invoiceNumber])
+    @@index([status])
+    @@index([dueDate])
+}
+
+enum InvoiceType {
+    SALES
+    SERVICE
+    PROJECT
+}
+
+enum InvoiceStatus {
+    DRAFT
+    APPROVED
+    POSTED
+    PARTIALLY_PAID
+    PAID
+    OVERDUE
+    CANCELLED
+}
+
+model InvoiceItem {
+    id          String @id @default(cuid())
+    description String
+    quantity    Float
+    unitPrice   Float
+    totalPrice  Float
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    invoice     Invoice @relation(fields: [invoiceId], references: [id])
+    invoiceId   String
+
+    @@index([invoiceId])
+}
+
+model Bill {
+    id              String @id @default(cuid())
+    billNumber      String @unique
+    status          BillStatus @default(DRAFT)
+    issueDate       DateTime
+    dueDate         DateTime
+    subtotal        Float @default(0)
+    taxAmount       Float @default(0)
+    totalAmount     Float @default(0)
+    paidAmount      Float @default(0)
+    remainingAmount Float @default(0)
+    description     String?
+    notes           String?
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+
+    // Relations
+    vendor          Vendor @relation(fields: [vendorId], references: [id])
+    vendorId        String
+
+    // Bill Details
+    items           BillItem[]
+    payments        Payment[]
+
+    @@index([billNumber])
+    @@index([status])
+    @@index([dueDate])
+}
+
+enum BillStatus {
+    DRAFT
+    APPROVED
+    POSTED
+    PARTIALLY_PAID
+    PAID
+    OVERDUE
+    CANCELLED
+}
+
+model BillItem {
+    id          String @id @default(cuid())
+    description String
+    quantity    Float
+    unitPrice   Float
+    totalPrice  Float
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    bill        Bill @relation(fields: [billId], references: [id])
+    billId      String
+
+    @@index([billId])
+}
+
+model Payment {
+    id              String @id @default(cuid())
+    paymentNumber   String @unique
+    type            PaymentType
+    method          PaymentMethod
+    amount          Float
+    paymentDate     DateTime
+    reference       String?
+    notes           String?
+    isReconciled    Boolean @default(false)
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+
+    // Relations
+    invoice         Invoice? @relation(fields: [invoiceId], references: [id])
+    invoiceId       String?
+    bill            Bill? @relation(fields: [billId], references: [id])
+    billId          String?
+
+    @@index([paymentNumber])
+    @@index([type])
+    @@index([paymentDate])
+}
+
+enum PaymentType {
+    RECEIPT // Payment received (AR)
+    PAYMENT // Payment made (AP)
+}
+
+enum PaymentMethod {
+    CASH
+    BANK_TRANSFER
+    CHECK
+    CREDIT_CARD
+    OTHER
+}
+
+// Chart of Accounts & Journal
+model ChartOfAccount {
+    id          String @id @default(cuid())
+    accountCode String @unique
+    accountName String
+    accountType AccountType
+    parentId    String?
+    isActive    Boolean @default(true)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    parent      ChartOfAccount? @relation("AccountHierarchy", fields: [parentId], references: [id])
+    children    ChartOfAccount[] @relation("AccountHierarchy")
+    journalEntries JournalEntry[]
+
+    @@index([accountCode])
+    @@index([accountType])
+}
+
+enum AccountType {
+    ASSET
+    LIABILITY
+    EQUITY
+    REVENUE
+    EXPENSE
+}
+
+model Journal {
+    id              String @id @default(cuid())
+    journalNumber   String @unique
+    description     String
+    journalDate     DateTime
+    reference       String?
+    totalDebit      Float @default(0)
+    totalCredit     Float @default(0)
+    status          JournalStatus @default(DRAFT)
+    isAutoGenerated Boolean @default(false)
+    sourceType      String? // "PAYROLL", "INVOICE", "WORKORDER", etc.
+    sourceId        String?
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+
+    // Relations
+    company         Company @relation(fields: [companyId], references: [id])
+    companyId       String
+    entries         JournalEntry[]
+
+    @@index([companyId])
+    @@index([journalNumber])
+    @@index([journalDate])
+    @@index([status])
+}
+
+enum JournalStatus {
+    DRAFT
+    POSTED
+    REVERSED
+}
+
+model JournalEntry {
+    id          String @id @default(cuid())
+    description String
+    debitAmount Float @default(0)
+    creditAmount Float @default(0)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    journal     Journal @relation(fields: [journalId], references: [id])
+    journalId   String
+    account     ChartOfAccount @relation(fields: [accountId], references: [id])
+    accountId   String
+
+    @@index([journalId])
+    @@index([accountId])
+}
