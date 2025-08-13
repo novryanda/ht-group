@@ -14,27 +14,36 @@ import {
 
 export function PageBreadcrumb() {
   const pathname = usePathname();
-  
-  // Don't show breadcrumb on login or dashboard page
+
+  // Don't show breadcrumb on login or main dashboard page
   if (pathname === "/" || pathname === "/login" || pathname === "/dashboard") {
     return null;
   }
 
   const pathSegments = pathname.split("/").filter(Boolean);
-  
+
   // Create breadcrumb items
   const breadcrumbItems = [
-    { label: "Dashboard", href: "/dashboard" },
+    { label: "HT Group", href: "/dashboard" },
   ];
 
   let currentPath = "";
+  let currentPT = "";
+
   pathSegments.forEach((segment, index) => {
     currentPath += `/${segment}`;
-    
+
     // Format segment for display
     let label = segment;
+    let href = currentPath;
+
     if (segment.startsWith("pt-")) {
+      currentPT = segment;
       label = segment.replace("pt-", "PT ").toUpperCase();
+      // For PT segments, don't link to them directly, they'll link to their dashboard
+    } else if (segment === "dashboard" && currentPT) {
+      label = "Dashboard";
+      // This is a PT dashboard page
     } else if (segment === "hvac-rittal") {
       label = "HVAC Rittal";
     } else if (segment === "hvac-split") {
@@ -53,13 +62,31 @@ export function PageBreadcrumb() {
       label = "Efluen";
     } else if (segment === "cutting-grass") {
       label = "Cutting Grass";
+    } else if (segment === "pm") {
+      label = "PM & Checklist";
+    } else if (segment === "parts") {
+      label = "Parts & Material";
+    } else if (segment === "materials") {
+      label = "Material Issue";
+    } else if (segment === "timesheet") {
+      label = "Timesheet";
+    } else if (segment === "report") {
+      label = "Laporan";
+    } else if (segment === "master") {
+      label = "Master Data";
     } else {
       label = segment.charAt(0).toUpperCase() + segment.slice(1);
     }
 
+    // Special handling for PT dashboard links
+    if (segment.startsWith("pt-") && index < pathSegments.length - 1 && pathSegments[index + 1] !== "dashboard") {
+      // If we're in a PT but not on the dashboard, make PT link to its dashboard
+      href = `${currentPath}/dashboard`;
+    }
+
     breadcrumbItems.push({
       label,
-      href: currentPath,
+      href,
     });
   });
 

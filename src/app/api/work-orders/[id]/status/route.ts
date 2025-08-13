@@ -25,7 +25,7 @@ export async function PUT(
     const { status: newStatus } = body;
 
     // Check if the status transition is allowed for this user role
-    const userRole = session.user.role;
+    const userRole = (session.user as any).role;
     const availableTransitions = getAvailableStatusTransitions(
       existingWorkOrder.status,
       userRole
@@ -84,7 +84,7 @@ export async function GET(
     const workOrder = await getWorkOrderById(id);
     
     // Get available status transitions for this user
-    const userRole = session.user.role;
+    const userRole = (session.user as any).role;
     const availableTransitions = getAvailableStatusTransitions(
       workOrder.status,
       userRole

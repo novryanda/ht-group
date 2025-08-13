@@ -55,8 +55,8 @@ export async function PUT(
     const existingWorkOrder = await getWorkOrderById(id);
     
     // Check if user can update this work order
-    const userRole = session.user.role;
-    const userId = session.user.employeeId || "";
+    const userRole = (session.user as any).role;
+    const userId = (session.user as any).employeeId || "";
 
     if (!canUpdateWorkOrder(existingWorkOrder, userRole, userId)) {
       return NextResponse.json(
@@ -105,7 +105,7 @@ export async function DELETE(
     }
 
     // Only PT Manager and Unit Supervisor can delete work orders
-    const userRole = session.user.role;
+    const userRole = (session.user as any).role;
     if (!["PT_MANAGER", "UNIT_SUPERVISOR"].includes(userRole)) {
       return NextResponse.json(
         { error: "Insufficient permissions" },

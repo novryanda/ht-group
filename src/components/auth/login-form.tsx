@@ -102,6 +102,12 @@ export function LoginForm() {
         <p className="font-medium">Demo Credentials:</p>
         <p>Email: admin@ht-group.com</p>
         <p>Password: password123</p>
+        <div className="mt-2">
+          <p className="text-xs">PT-specific admins:</p>
+          <p className="text-xs">admin.nilo@ht-group.com (PT NILO)</p>
+          <p className="text-xs">admin.zta@ht-group.com (PT ZTA)</p>
+          <p className="text-xs">executive@ht-group.com (Group Executive)</p>
+        </div>
       </div>
 
     </div>

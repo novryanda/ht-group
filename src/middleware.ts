@@ -1,44 +1,15 @@
 import { NextResponse } from "next/server";
 import { auth } from "~/server/auth";
+import { canAccessRoute, getCompanyCodeFromRoute, hasCompanyAccess, getDefaultRedirectPath } from "~/lib/rbac";
 
-// Define route permissions
-const routePermissions: Record<string, string[]> = {
-  // Dashboard - accessible to all authenticated users
-  "/dashboard": ["GROUP_VIEWER", "EXECUTIVE", "PT_MANAGER", "UNIT_SUPERVISOR", "TECHNICIAN", "OPERATOR", "HR", "FINANCE_AR", "FINANCE_AP", "GL_ACCOUNTANT"],
-
-  // PT NILO routes
-  "/pt-nilo": ["PT_MANAGER", "UNIT_SUPERVISOR", "TECHNICIAN", "OPERATOR", "HR", "FINANCE_AR", "FINANCE_AP", "GL_ACCOUNTANT"],
-  "/pt-nilo/hvac-rittal": ["PT_MANAGER", "UNIT_SUPERVISOR", "TECHNICIAN", "OPERATOR"],
-  "/pt-nilo/hvac-split": ["PT_MANAGER", "UNIT_SUPERVISOR", "TECHNICIAN", "OPERATOR"],
-  "/pt-nilo/fabrikasi": ["PT_MANAGER", "UNIT_SUPERVISOR", "TECHNICIAN", "OPERATOR"],
-  "/pt-nilo/efluen": ["PT_MANAGER", "UNIT_SUPERVISOR", "TECHNICIAN", "OPERATOR"],
-  "/pt-nilo/hr": ["PT_MANAGER", "HR"],
-  "/pt-nilo/finance": ["PT_MANAGER", "FINANCE_AR", "FINANCE_AP", "GL_ACCOUNTANT"],
-  "/pt-nilo/master": ["PT_MANAGER"],
-
-  // Other PT routes
-  "/pt-zta": ["PT_MANAGER", "UNIT_SUPERVISOR", "TECHNICIAN", "OPERATOR", "HR", "FINANCE_AR", "FINANCE_AP", "GL_ACCOUNTANT"],
-  "/pt-tam": ["PT_MANAGER", "UNIT_SUPERVISOR", "TECHNICIAN", "OPERATOR", "HR", "FINANCE_AR", "FINANCE_AP", "GL_ACCOUNTANT"],
-  "/pt-htk": ["PT_MANAGER", "UNIT_SUPERVISOR", "TECHNICIAN", "OPERATOR", "HR", "FINANCE_AR", "FINANCE_AP", "GL_ACCOUNTANT"],
-};
-
-function hasPermission(userRole: string, pathname: string): boolean {
-  // Check exact match first
-  if (routePermissions[pathname]) {
-    return routePermissions[pathname].includes(userRole);
+function hasRouteAccess(session: any, pathname: string): boolean {
+  // Allow access to general routes
+  if (pathname === "/" || pathname === "/dashboard" || pathname === "/unauthorized") {
+    return true;
   }
 
-  // Check parent paths
-  const pathSegments = pathname.split("/").filter(Boolean);
-  for (let i = pathSegments.length; i > 0; i--) {
-    const parentPath = "/" + pathSegments.slice(0, i).join("/");
-    if (routePermissions[parentPath]) {
-      return routePermissions[parentPath].includes(userRole);
-    }
-  }
-
-  // Default: allow access for authenticated users to dashboard
-  return pathname === "/";
+  // Check PT-specific route access using RBAC
+  return canAccessRoute(session, pathname);
 }
 
 export default auth((req) => {
@@ -70,17 +41,23 @@ export default auth((req) => {
   }
 
   // User is authenticated
+  const session = req.auth;
 
-  // If trying to access login page, redirect to dashboard
+  // If trying to access login page, redirect to user's default dashboard
   if (isLoginPage) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    const defaultPath = getDefaultRedirectPath(session);
+    return NextResponse.redirect(new URL(defaultPath, req.url));
+  }
+
+  // If accessing root, redirect to user's default dashboard
+  if (pathname === "/") {
+    const defaultPath = getDefaultRedirectPath(session);
+    return NextResponse.redirect(new URL(defaultPath, req.url));
   }
 
   // Check role-based permissions for protected routes
   if (!isPublicRoute) {
-    const userRole = req.auth.user?.role as string;
-
-    if (!hasPermission(userRole, pathname)) {
+    if (!hasRouteAccess(session, pathname)) {
       return NextResponse.redirect(new URL("/unauthorized", req.url));
     }
   }

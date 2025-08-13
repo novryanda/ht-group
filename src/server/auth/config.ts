@@ -1,165 +1,105 @@
-import { type DefaultSession, type NextAuthConfig } from "next-auth";
-import DiscordProvider from "next-auth/providers/discord";
-import CredentialsProvider from "next-auth/providers/credentials";
+import { type NextAuthConfig } from "next-auth";
+import Credentials from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
+import { db } from "../db";
 
-// Define UserRole enum locally for now
-type UserRole =
-  | "GROUP_VIEWER"
-  | "EXECUTIVE"
-  | "PT_MANAGER"
-  | "UNIT_SUPERVISOR"
-  | "TECHNICIAN"
-  | "OPERATOR"
-  | "HR"
-  | "FINANCE_AR"
-  | "FINANCE_AP"
-  | "GL_ACCOUNTANT";
-
-/**
- * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
- * object and keep type safety.
- *
- * @see https://next-auth.js.org/getting-started/typescript#module-augmentation
- */
-declare module "next-auth" {
-  interface Session extends DefaultSession {
-    user: {
-      id: string;
-      role: UserRole;
-      employeeId?: string;
-      companyId?: string;
-      unitId?: string;
-    } & DefaultSession["user"];
-  }
-
-  interface User {
-    role: UserRole;
-    employeeId?: string;
-    companyId?: string;
-    unitId?: string;
-  }
-}
-
-/**
- * Options for NextAuth.js used to configure adapters, providers, callbacks, etc.
- *
- * @see https://next-auth.js.org/configuration/options
- */
-export const authConfig = {
+export const authConfig: NextAuthConfig = {
   providers: [
-    CredentialsProvider({
-      name: "credentials",
+    Credentials({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
+        console.log("Authorize called with:", { email: credentials?.email, hasPassword: !!credentials?.password });
+        
         if (!credentials?.email || !credentials?.password) {
+          console.log("Missing email or password");
           return null;
         }
 
-        // For demo purposes, we'll use hardcoded users
-        // In production, you should query the database and verify hashed passwords
-        const demoUsers = [
-          {
-            id: "1",
-            email: "admin@ht-group.com",
-            name: "Administrator",
-            role: "PT_MANAGER" as UserRole,
-            employeeId: "emp-001",
-            companyId: "comp-001",
-            unitId: "unit-001",
-          },
-          {
-            id: "2",
-            email: "supervisor@ht-group.com",
-            name: "Unit Supervisor",
-            role: "UNIT_SUPERVISOR" as UserRole,
-            employeeId: "emp-002",
-            companyId: "comp-001",
-            unitId: "unit-001",
-          },
-          {
-            id: "3",
-            email: "technician@ht-group.com",
-            name: "Technician",
-            role: "TECHNICIAN" as UserRole,
-            employeeId: "emp-003",
-            companyId: "comp-001",
-            unitId: "unit-001",
-          },
-        ];
+        try {
+          // Find user by email and include employee data
+          const user = await db.user.findUnique({
+            where: { email: credentials.email as string },
+            include: { 
+              employee: {
+                include: {
+                  company: true
+                }
+              }
+            }
+          }) as any; // Type casting to avoid Prisma type issues
 
-        const user = demoUsers.find(u => u.email === credentials.email);
+          console.log("Found user:", user ? { id: user.id, email: user.email, hasEmployee: !!user.employee } : null);
 
-        if (!user) {
+          if (!user?.password) {
+            console.log("User not found or no password");
+            return null;
+          }
+
+          // Verify password
+          const isPasswordValid = await bcrypt.compare(
+            credentials.password as string,
+            user.password
+          );
+
+          if (!isPasswordValid) {
+            console.log("Invalid password");
+            return null;
+          }
+
+          console.log("Authentication successful for:", user.email);
+          
+          // For executives and group viewers, don't assign specific company
+          const userRole = user.employee?.role || "OPERATOR";
+          const isGroupLevel = userRole === "EXECUTIVE" || userRole === "GROUP_VIEWER";
+          
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name || user.employee?.name || "User",
+            role: userRole,
+            companyCode: isGroupLevel ? undefined : user.employee?.company?.code,
+            employeeId: user.employee?.id,
+          };
+        } catch (error) {
+          console.error("Authentication error:", error);
           return null;
         }
-
-        // Simple password check for demo
-        const isPasswordValid = credentials.password === "password123";
-
-        if (!isPasswordValid) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: null,
-          role: user.role,
-          employeeId: user.employeeId,
-          companyId: user.companyId,
-          unitId: user.unitId,
-        };
       },
     }),
-    DiscordProvider,
   ],
-  // adapter: PrismaAdapter(db), // Disabled for JWT strategy
   callbacks: {
-    session: ({ session, user, token }) => {
-      if (token) {
-        return {
-          ...session,
-          user: {
-            ...session.user,
-            id: token.sub!,
-            role: token.role as UserRole,
-            employeeId: token.employeeId as string,
-            companyId: token.companyId as string,
-            unitId: token.unitId as string,
-          },
-        };
-      }
-
-      return {
-        ...session,
-        user: {
-          ...session.user,
-          id: user.id,
-          role: (user as any).role,
-          employeeId: (user as any).employeeId,
-          companyId: (user as any).companyId,
-          unitId: (user as any).unitId,
-        },
-      };
-    },
-    jwt: ({ token, user }) => {
+    jwt({ token, user }) {
       if (user) {
         token.role = (user as any).role;
+        token.companyCode = (user as any).companyCode;
         token.employeeId = (user as any).employeeId;
-        token.companyId = (user as any).companyId;
-        token.unitId = (user as any).unitId;
       }
       return token;
     },
-  },
-  pages: {
-    signIn: "/login",
+    session({ session, token }) {
+      if (token) {
+        (session.user as any).role = token.role;
+        (session.user as any).companyCode = token.companyCode;
+        (session.user as any).employeeId = token.employeeId;
+      }
+      return session;
+    },
   },
   session: {
     strategy: "jwt",
   },
-} satisfies NextAuthConfig;
+  pages: {
+    signIn: "/login",
+  },
+};
+
+declare module "next-auth" {
+  interface User {
+    role?: string;
+    companyCode?: string;
+    employeeId?: string;
+  }
+}

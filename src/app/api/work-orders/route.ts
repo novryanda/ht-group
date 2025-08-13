@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has permission to create work orders
-    const userRole = session.user.role;
+    const userRole = (session.user as any).role;
     if (!["PT_MANAGER", "UNIT_SUPERVISOR"].includes(userRole)) {
       return NextResponse.json(
         { error: "Insufficient permissions" },
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     
     // Get employee ID from session
-    const employeeId = session.user.employeeId;
+    const employeeId = (session.user as any).employeeId;
     if (!employeeId) {
       return NextResponse.json(
         { error: "Employee profile not found" },
