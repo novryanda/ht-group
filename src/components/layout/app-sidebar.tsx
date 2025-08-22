@@ -44,6 +44,12 @@ import {
   Package,
   BarChart3,
   Cog,
+  Receipt,
+  Warehouse,
+  UserPlus,
+  Truck,
+  Scale,
+  Database,
 } from "lucide-react";
 
 // Define types for navigation
@@ -95,16 +101,17 @@ const ptNavigationData: Record<string, PTNavigationData> = {
         ],
       },
       {
-        title: "Fabrikasi",
+        title: "Manpower Fabrikasi",
         items: [
           { title: "Job Orders", url: "/pt-nilo/fabrikasi/jobs", icon: FileText },
           { title: "Timesheet", url: "/pt-nilo/fabrikasi/timesheet", icon: Clipboard },
           { title: "Material Issue", url: "/pt-nilo/fabrikasi/materials", icon: Package },
           { title: "Reports", url: "/pt-nilo/fabrikasi/reports", icon: BarChart3 },
+          { title: "Tagihan", url: "/pt-nilo/fabrikasi/tagihan", icon: Receipt },
         ],
       },
       {
-        title: "Efluen",
+        title: "Manpower Efluen",
         items: [
           { title: "Work Orders", url: "/pt-nilo/efluen/work-orders", icon: Wrench },
           { title: "Timesheet", url: "/pt-nilo/efluen/timesheet", icon: Clipboard },
@@ -150,12 +157,14 @@ const ptNavigationData: Record<string, PTNavigationData> = {
     code: "PT-TAM", 
     units: [
       {
-        title: "Fabrikasi",
+        title: "Manpower Fabrikasi",
         items: [
           { title: "Job Orders", url: "/pt-tam/fabrikasi/jobs", icon: FileText },
           { title: "Timesheet", url: "/pt-tam/fabrikasi/timesheet", icon: Clipboard },
           { title: "Material Issue", url: "/pt-tam/fabrikasi/materials", icon: Package },
           { title: "Reports", url: "/pt-tam/fabrikasi/reports", icon: BarChart3 },
+          { title: "Manpower", url: "/pt-tam/fabrikasi/manpower", icon: Users },
+          { title: "Tagihan", url: "/pt-tam/fabrikasi/tagihan", icon: Receipt },
         ],
       },
     ],
@@ -176,11 +185,71 @@ const ptNavigationData: Record<string, PTNavigationData> = {
           { title: "Reports", url: "/pt-htk/cutting-grass/reports", icon: BarChart3 },
         ],
       },
+      {
+        title: "Heavy Equipment",
+        items: [
+          { title: "Job Orders", url: "/pt-htk/heavy-equipment/jobs", icon: FileText },
+          { title: "Timesheet", url: "/pt-htk/heavy-equipment/timesheet", icon: Clipboard },
+          { title: "Reports", url: "/pt-htk/heavy-equipment/reports", icon: BarChart3 },
+        ],
+      },
+      {
+        title: "Hauling Container",
+        items: [
+          { title: "Job Orders", url: "/pt-htk/hauling-container/jobs", icon: FileText },
+          { title: "Timesheet", url: "/pt-htk/hauling-container/timesheet", icon: Clipboard },
+          { title: "Reports", url: "/pt-htk/hauling-container/reports", icon: BarChart3 },
+        ],
+      },
     ],
     common: [
       { title: "HR & Payroll", url: "/pt-htk/hr", icon: Users },
       { title: "Finance", url: "/pt-htk/finance", icon: Calculator },
       { title: "Master Data", url: "/pt-htk/master", icon: Cog },
+    ],
+  },
+  "PT PKS": {
+    code: "PT-PKS",
+    units: [
+      {
+        title: "Gudang & Persediaan",
+        items: [
+          { title: "Permintaan Barang (SR/PR)", url: "/pt-pks/gudang-persediaan/permintaan-barang", icon: FileText },
+          { title: "Material & Kode Barang", url: "/pt-pks/gudang-persediaan/material-kode-barang", icon: Package },
+          { title: "Persediaan & Kartu Stok", url: "/pt-pks/gudang-persediaan/persediaan-kartu-stok", icon: Database },
+          { title: "Pengeluaran Barang", url: "/pt-pks/gudang-persediaan/pengeluaran-barang", icon: Truck },
+        ],
+      },
+      {
+        title: "HRD & Payroll",
+        items: [
+          { title: "Data Karyawan & ID", url: "/pt-pks/hrd-payroll/data-karyawan", icon: UserPlus },
+          { title: "Absensi & Jadwal Kerja", url: "/pt-pks/hrd-payroll/absensi-jadwal", icon: Clipboard },
+          { title: "Penggajian & Lembur", url: "/pt-pks/hrd-payroll/penggajian-lembur", icon: Calculator },
+          { title: "Cuti", url: "/pt-pks/hrd-payroll/cuti", icon: FileText },
+          { title: "Rekrutmen & Training", url: "/pt-pks/hrd-payroll/rekrutmen-training", icon: Users },
+        ],
+      },
+      {
+        title: "Supplier & Pembelian",
+        items: [
+          { title: "Pendaftaran Supplier", url: "/pt-pks/supplier-pembelian/pendaftaran-supplier", icon: Building2 },
+          { title: "Verifikasi Dokumen", url: "/pt-pks/supplier-pembelian/verifikasi-dokumen", icon: FileText },
+          { title: "Penerimaan Bahan Baku", url: "/pt-pks/supplier-pembelian/penerimaan-bahan-baku", icon: Truck },
+        ],
+      },
+      {
+        title: "Produksi – Penerimaan",
+        items: [
+          { title: "Data Penerimaan", url: "/pt-pks/produksi-tbs/data-penerimaan", icon: Database },
+          { title: "Surat Pengantar Buah", url: "/pt-pks/produksi-tbs/surat-pengantar-buah", icon: FileText },
+          { title: "Sortasi", url: "/pt-pks/produksi-tbs/sortasi", icon: Package },
+          { title: "Slip Timbangan", url: "/pt-pks/produksi-tbs/slip-timbangan", icon: Scale },
+        ],
+      },
+    ],
+    common: [
+      // Removed duplicate Dashboard entry - it's already in navigationItems
     ],
   },
 };
@@ -219,7 +288,7 @@ const navigationItems = [
         ],
       },
       {
-        title: "Fabrikasi",
+        title: "Manpower Fabrikasi",
         items: [
           { title: "Projects / Job Orders", url: "/pt-nilo/fabrikasi/jobs" },
           { title: "Timesheet", url: "/pt-nilo/fabrikasi/timesheet" },
@@ -228,7 +297,7 @@ const navigationItems = [
         ],
       },
       {
-        title: "Efluen",
+        title: "Manpower Efluen",
         items: [
           { title: "WO / Projects", url: "/pt-nilo/efluen/jobs" },
           { title: "Timesheet", url: "/pt-nilo/efluen/timesheet" },
@@ -295,7 +364,7 @@ const navigationItems = [
         icon: Home,
       },
       {
-        title: "Fabrikasi",
+        title: "Manpower Fabrikasi",
         items: [
           { title: "Projects / Job Orders", url: "/pt-tam/fabrikasi/jobs" },
         ],
@@ -328,6 +397,18 @@ const navigationItems = [
         ],
       },
       {
+        title: "Heavy Equipment",
+        items: [
+          { title: "Job Orders", url: "/pt-htk/heavy-equipment/jobs" },
+        ],
+      },
+      {
+        title: "Hauling Container",
+        items: [
+          { title: "Job Orders", url: "/pt-htk/hauling-container/jobs" },
+        ],
+      },
+      {
         title: "HR & Payroll",
         url: "/pt-htk/hr",
         icon: Users,
@@ -336,6 +417,53 @@ const navigationItems = [
         title: "Finance",
         url: "/pt-htk/finance",
         icon: Calculator,
+      },
+    ],
+  },
+  {
+    title: "PT PKS",
+    icon: Building2,
+    items: [
+      {
+        title: "Dashboard",
+        url: "/pt-pks/dashboard",
+        icon: Home,
+      },
+      {
+        title: "Gudang & Persediaan",
+        items: [
+          { title: "Permintaan Barang (SR/PR)", url: "/pt-pks/gudang-persediaan/permintaan-barang" },
+          { title: "Material & Kode Barang", url: "/pt-pks/gudang-persediaan/material-kode-barang" },
+          { title: "Persediaan & Kartu Stok", url: "/pt-pks/gudang-persediaan/persediaan-kartu-stok" },
+          { title: "Pengeluaran Barang", url: "/pt-pks/gudang-persediaan/pengeluaran-barang" },
+        ],
+      },
+      {
+        title: "HRD & Payroll",
+        items: [
+          { title: "Data Karyawan & ID", url: "/pt-pks/hrd-payroll/data-karyawan" },
+          { title: "Absensi & Jadwal Kerja", url: "/pt-pks/hrd-payroll/absensi-jadwal" },
+          { title: "Penggajian & Lembur", url: "/pt-pks/hrd-payroll/penggajian-lembur" },
+          { title: "Cuti", url: "/pt-pks/hrd-payroll/cuti" },
+          { title: "Rekrutmen & Training", url: "/pt-pks/hrd-payroll/rekrutmen-training" },
+        ],
+      },
+      {
+        title: "Supplier & Pembelian",
+        items: [
+          { title: "Pendaftaran Supplier", url: "/pt-pks/supplier-pembelian/pendaftaran-supplier" },
+          { title: "Verifikasi Dokumen", url: "/pt-pks/supplier-pembelian/verifikasi-dokumen" },
+          { title: "Penerimaan Bahan Baku", url: "/pt-pks/supplier-pembelian/penerimaan-bahan-baku" },
+        ],
+      },
+      {
+        title: "Produksi – Penerimaan TBS",
+        items: [
+          { title: "Data Penerimaan", url: "/pt-pks/produksi-tbs/data-penerimaan" },
+          { title: "Surat Pengantar Buah", url: "/pt-pks/produksi-tbs/surat-pengantar-buah" },
+          { title: "Sortasi", url: "/pt-pks/produksi-tbs/sortasi" },
+          { title: "Slip Timbangan", url: "/pt-pks/produksi-tbs/slip-timbangan" },
+        ],
       },
     ],
   },
@@ -472,8 +600,8 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarMenu>
-          {dynamicNavigationItems.map((item: NavigationItem) => (
-            <SidebarMenuItem key={item.title}>
+          {dynamicNavigationItems.map((item: NavigationItem, itemIndex) => (
+            <SidebarMenuItem key={`${item.title}-${itemIndex}`}>
               {item.url ? (
                 <SidebarMenuButton asChild isActive={pathname === item.url}>
                   <Link href={item.url}>
@@ -500,8 +628,8 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                   {openItems.includes(item.title) && item.items && (
                     <SidebarMenuSub>
-                      {item.items.map((subItem: NavigationItem) => (
-                        <SidebarMenuSubItem key={subItem.title}>
+                      {item.items.map((subItem: NavigationItem, subIndex) => (
+                        <SidebarMenuSubItem key={`${item.title}-${subItem.title}-${subIndex}`}>
                           {subItem.url ? (
                             <SidebarMenuSubButton asChild isActive={pathname === subItem.url}>
                               <Link href={subItem.url}>
@@ -525,8 +653,8 @@ export function AppSidebar() {
                               </SidebarMenuSubButton>
                               {openItems.includes(`${item.title}-${subItem.title}`) && subItem.items && (
                                 <SidebarMenuSub>
-                                  {subItem.items.map((nestedItem: NavigationItem) => (
-                                    <SidebarMenuSubItem key={nestedItem.title}>
+                                  {subItem.items.map((nestedItem: NavigationItem, nestedIndex) => (
+                                    <SidebarMenuSubItem key={`${item.title}-${subItem.title}-${nestedItem.title}-${nestedIndex}`}>
                                       <SidebarMenuSubButton asChild isActive={pathname === nestedItem.url}>
                                         <Link href={nestedItem.url || "#"}>
                                           <span>{nestedItem.title}</span>

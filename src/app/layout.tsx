@@ -19,11 +19,12 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${geist.variable}`}>
-      <body className="min-h-screen bg-background font-sans antialiased">
-        <SessionProvider>
-          {children}
-        </SessionProvider>
+    <html lang="en" className={`${geist.variable}`} suppressHydrationWarning>
+      <body
+        className="min-h-screen bg-background font-sans antialiased"
+        suppressHydrationWarning
+      >
+        <SessionProvider>{children}</SessionProvider>
       </body>
     </html>
   );
