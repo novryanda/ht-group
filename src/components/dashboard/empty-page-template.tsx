@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
-import { Construction } from "lucide-react";
+import { Construction, Loader2 } from "lucide-react";
 
 interface EmptyPageTemplateProps {
   title: string;
@@ -9,7 +9,7 @@ interface EmptyPageTemplateProps {
 
 export function EmptyPageTemplate({ 
   title, 
-  description = "Halaman ini sedang dalam tahap pengembangan",
+  description = "Halaman ini sedang dalam update dengan fitur terbaru",
   module
 }: EmptyPageTemplateProps) {
   return (
@@ -32,15 +32,22 @@ export function EmptyPageTemplate({
 
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Construction className="h-24 w-24 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">
-              Fitur Belum Tersedia
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="relative mb-8">
+              <Construction className="h-32 w-32 text-amber-500 animate-pulse" />
+              <Loader2 className="h-12 w-12 text-primary absolute -bottom-3 -right-3 animate-spin" />
+            </div>
+            <h3 className="text-2xl font-bold mb-3">
+              Sedang Dalam Update
             </h3>
-            <p className="text-sm text-muted-foreground max-w-md">
-              Halaman ini akan segera hadir. Saat ini kami sedang mengembangkan
-              fitur-fitur yang diperlukan untuk modul ini.
+            <p className="text-base text-muted-foreground max-w-lg mb-6">
+              Halaman ini sedang dalam proses pembaruan dengan fitur-fitur terbaru.
+              Mohon tunggu, kami akan segera menyelesaikan update ini.
             </p>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted px-4 py-2 rounded-full">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="font-medium">Memperbarui sistem...</span>
+            </div>
           </div>
         </CardContent>
       </Card>
