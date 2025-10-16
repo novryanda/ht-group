@@ -1,0 +1,854 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // NOTE: When using mysql or sqlserver, uncomment the @db.Text annotations in model Account below
+  // Further reading:
+  // https://next-auth.js.org/adapters/prisma#create-the-prisma-schema
+  // https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#string
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ERP Core Models
+
+enum UserRole {
+  GROUP_VIEWER
+  EXECUTIVE
+  PT_MANAGER
+  PT_NILO_ADMIN
+  PT_ZTA_ADMIN
+  PT_TAM_ADMIN
+  PT_HTK_ADMIN
+  PT_PKS_ADMIN
+  UNIT_SUPERVISOR
+  TECHNICIAN
+  OPERATOR
+  HR
+  FINANCE_AR
+  FINANCE_AP
+  GL_ACCOUNTANT
+}
+
+enum SupplierType {
+  RAMP_PERON
+  KUD
+  KELOMPOK_TANI
+}
+
+enum PajakPKP {
+  PKP_11_PERSEN // 11%
+  PKP_1_1_PERSEN // 1.1%
+  NON_PKP // Non PKP
+}
+
+enum FamilyRelation {
+  ISTRI
+  ANAK
+}
+
+enum BuyerType {
+  COMPANY
+  PERSON
+}
+
+enum PkpStatus {
+  NON_PKP
+  PKP_11
+  PKP_1_1
+}
+
+enum BuyerStatus {
+  DRAFT
+  VERIFIED
+  INACTIVE
+}
+
+enum TransporterType {
+  PERUSAHAAN
+  PERORANGAN
+}
+
+enum RecordStatus {
+  AKTIF
+  NONAKTIF
+}
+
+// Company Model
+model Company {
+  id        String     @id @default(cuid())
+  code      String?    @unique // Company code for identification (e.g., "HTK", "NILO", etc.) - temporarily optional
+  name      String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  employees Employee[]
+}
+
+// Employee Model (maps to karyawan table)
+model Employee {
+  id_karyawan           String    @id @default(cuid())
+  nama                  String?   @db.VarChar(100)
+  status_kk             String?   @db.VarChar(50) // status dalam KK
+  jenis_kelamin         String?   @db.Char(1) // L / P
+  agama                 String?   @db.VarChar(30)
+  suku                  String?   @db.VarChar(50)
+  golongan_darah        String?   @db.VarChar(5)
+  no_telp_hp            String?   @db.VarChar(20)
+  tempat_lahir          String?   @db.VarChar(50)
+  tanggal_lahir         DateTime?
+  umur                  Int?
+  alamat_rt_rw          String?   @db.VarChar(20)
+  alamat_desa           String?   @db.VarChar(100)
+  alamat_kecamatan      String?   @db.VarChar(100)
+  alamat_kabupaten      String?   @db.VarChar(100)
+  alamat_provinsi       String?   @db.VarChar(100)
+  pendidikan_terakhir   String?   @db.VarChar(50)
+  jurusan               String?   @db.VarChar(100)
+  jabatan               String?   @db.VarChar(100)
+  devisi                String?   @db.VarChar(100)
+  level                 String?   @db.VarChar(50)
+  tgl_masuk_kerja       DateTime?
+  tgl_terakhir_kerja    DateTime?
+  masa_kerja            String?   @db.VarChar(50)
+  status_pkwt           String?   @db.VarChar(50) // PKWT
+  no_bpjs_tenaga_kerja  String?   @db.VarChar(50)
+  no_nik_ktp            String?   @db.VarChar(20)
+  no_bpjs_kesehatan     String?   @db.VarChar(50)
+  no_npwp               String?   @db.VarChar(50)
+  status_pajak          String?   @db.VarChar(20) // TK/0, TK/1, K/0, K/1, dst.
+  no_rekening_bank      String?   @db.VarChar(50)
+  perusahaan_sebelumnya String?   @db.VarChar(100)
+
+  // Relationships
+  companyId      String?
+  company        Company?         @relation(fields: [companyId], references: [id])
+  userId         String?          @unique
+  user           User?            @relation(fields: [userId], references: [id])
+  EmployeeFamily EmployeeFamily[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("karyawan")
+}
+
+// Employee Family Model - Keluarga Karyawan (Istri & Anak)
+model EmployeeFamily {
+  id                String         @id @default(cuid())
+  employeeId        String
+  employee          Employee       @relation(fields: [employeeId], references: [id_karyawan], onDelete: Cascade)
+
+  nama              String         @db.VarChar(100)
+  hubungan          FamilyRelation
+  jenis_kelamin     String?        @db.Char(1) // L/P
+  tanggal_lahir     DateTime?
+  umur              Int?
+  no_nik_ktp        String?        @db.VarChar(20)
+  no_bpjs_kesehatan String?        @db.VarChar(50)
+  no_telp_hp        String?        @db.VarChar(20)
+
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([employeeId])
+  @@map("employee_family")
+}
+
+// User Model - Core authentication
+model User {
+  id       String    @id @default(cuid())
+  name     String?
+  email    String?   @unique
+  password String? // Hashed password for authentication
+  role     UserRole  @default(OPERATOR)
+  employee Employee?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+// Supplier TBS Model for PT PKS
+model SupplierTBS {
+  id           String       @id @default(cuid())
+  nomorForm    String? // ex: .../PT.TRT/SUPP-TBS/mm/2024
+  typeSupplier SupplierType
+  pajakPKP     PajakPKP     @default(NON_PKP)
+
+  // IDENTITAS
+  namaPemilik     String
+  alamatPemilik   String?
+  hpPemilik       String?
+  namaPerusahaan  String?
+  alamatRampPeron String?
+  hpPerusahaan    String?
+  bujur           String?
+  lintang         String?
+
+  // PROFIL KEBUN - JSON field containing tahunTanam, luasKebun, estimasiSupply
+  profilKebun Json?
+
+  // TIPE PENGELOLAAN
+  pengelolaanSwadaya    String?
+  pengelolaanKelompok   String?
+  pengelolaanPerusahaan String?
+  jenisBibit            String?
+  sertifikasiISPO       Boolean @default(false)
+  sertifikasiRSPO       Boolean @default(false)
+
+  // PROFIL IZIN USAHA
+  aktePendirian String?
+  aktePerubahan String?
+  nib           String? @unique
+  siup          String?
+  npwp          String? @unique
+
+  // PENJUALAN TBS
+  penjualanLangsungPKS String?
+  penjualanAgen        String?
+
+  // TRANSPORTASI
+  transportMilikSendiri Int?
+  transportPihak3       Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([typeSupplier])
+  @@index([pajakPKP])
+}
+
+// Buyer Model for PT PKS - DataMaster Buyer
+model Buyer {
+  id               String      @id @default(cuid())
+  buyerCode        String      @unique
+  type             BuyerType   // COMPANY | PERSON
+  legalName        String
+  tradeName        String?
+  npwp             String?     @unique
+  pkpStatus        PkpStatus   // NON_PKP | PKP_11 | PKP_1_1
+  addressLine      String
+  city             String
+  province         String
+  postalCode       String?
+  billingEmail     String
+  phone            String
+  destinationName  String      // gudang/bulking tujuan
+  destinationAddr  String
+
+  status           BuyerStatus @default(VERIFIED) // DRAFT | VERIFIED | INACTIVE
+  verifiedAt       DateTime?
+  verifiedById     String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  contacts         BuyerContact[]
+  docs             BuyerDoc[]
+
+  @@index([type])
+  @@index([status])
+  @@index([city])
+  @@index([province])
+}
+
+model BuyerContact {
+  id        String  @id @default(cuid())
+  buyerId   String
+  name      String
+  role      String?
+  email     String
+  phone     String
+  isBilling Boolean @default(false)
+  buyer     Buyer   @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+
+  @@index([buyerId])
+}
+
+model BuyerDoc {
+  id        String @id @default(cuid())
+  buyerId   String
+  kind      String // NPWP | NIB | KTP_PIC | AKTA | ...
+  fileUrl   String
+  fileName  String
+  buyer     Buyer  @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+
+  @@index([buyerId])
+}
+
+// Transporter Model for PT PKS - DataMaster Transportir
+model Transporter {
+  id              String         @id @default(cuid())
+  type            TransporterType
+  legalName       String
+  tradeName       String?
+  npwp            String?        @unique
+  pkpStatus       PkpStatus      // NON_PKP | PKP_11 | PKP_1_1
+  addressLine     String?
+  city            String?
+  province        String?
+  postalCode      String?
+  picName         String?
+  picPhone        String?
+  picEmail        String?
+  bankName        String?
+  bankAccountNo   String?
+  bankAccountNm   String?
+  statementUrl    String?        // surat pernyataan (NPWP/rekening)
+  isVerified      Boolean        @default(true) // admin input → auto verified
+  status          RecordStatus   @default(AKTIF)
+  notes           String?
+
+  vehicles        Vehicle[]
+  drivers         Driver[]
+  tariffs         TransportTariff[]
+  contracts       TransportContract[]
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([legalName])
+  @@index([pkpStatus])
+  @@index([status])
+  @@index([city])
+}
+
+model Vehicle {
+  id              String     @id @default(cuid())
+  transporterId   String
+  plateNo         String     @unique
+  type            String
+  capacityTons    Decimal?   @db.Decimal(10, 2)
+  stnkUrl         String?
+  stnkValidThru   DateTime?
+  kirUrl          String?
+  kirValidThru    DateTime?
+  gpsId           String?
+  photoUrl        String?
+
+  transporter     Transporter @relation(fields: [transporterId], references: [id], onDelete: Cascade)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([transporterId])
+  @@index([plateNo])
+}
+
+model Driver {
+  id              String     @id @default(cuid())
+  transporterId   String
+  name            String
+  phone           String?
+  nik             String?
+  simType         String?
+  simUrl          String?
+  simValidThru    DateTime?
+
+  transporter     Transporter @relation(fields: [transporterId], references: [id], onDelete: Cascade)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([transporterId])
+  @@index([name])
+}
+
+model TransportTariff {
+  id              String     @id @default(cuid())
+  transporterId   String
+  origin          String     // cluster/kebun/pabrik
+  destination     String     // pabrik/SPBE
+  commodity       String     // TBS/CPO/Kernel/PKO
+  unit            String     // TON/KM/TRIP
+  price           Decimal    @db.Decimal(15, 2)
+  includeToll     Boolean    @default(false)
+  includeUnload   Boolean    @default(false)
+  includeTax      Boolean    @default(false)
+  notes           String?
+
+  transporter     Transporter @relation(fields: [transporterId], references: [id], onDelete: Cascade)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([transporterId, origin, destination, commodity])
+}
+
+model TransportContract {
+  id              String     @id @default(cuid())
+  transporterId   String
+  contractNo      String     @unique
+  buyerId         String?    // opsional: relasi ke Buyer jika 3 pihak
+  commodity       String
+  startDate       DateTime?
+  endDate         DateTime?
+  baseTariffId    String?
+  dokUrl          String?
+
+  transporter     Transporter @relation(fields:[transporterId], references:[id], onDelete: Cascade)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([transporterId])
+  @@index([contractNo])
+}
+
+// ============================================================================
+// INVENTORY & MATERIAL MANAGEMENT MODELS
+// ============================================================================
+
+enum LocationType {
+  WAREHOUSE
+  ZONE
+  RACK
+  BIN
+}
+
+enum LedgerType {
+  IN_OPENING
+  IN_GRN
+  IN_TRANSFER
+  IN_ADJUSTMENT
+  OUT_ISSUE
+  OUT_TRANSFER
+  OUT_ADJUSTMENT
+  COUNT_DIFF_IN
+  COUNT_DIFF_OUT
+}
+
+// Unit of Measure (UoM)
+model Uom {
+  id               String           @id @default(cuid())
+  code             String           @unique
+  name             String
+  description      String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  conversionsFrom  UomConversion[]  @relation("fromUom")
+  conversionsTo    UomConversion[]  @relation("toUom")
+  materials        Material[]
+  grnItems         GoodsReceiptItem[]
+  issueItems       GoodsIssueItem[]
+  transfers        StockTransfer[]
+}
+
+model UomConversion {
+  id         String  @id @default(cuid())
+  fromUomId  String
+  toUomId    String
+  factor     Decimal @db.Decimal(18, 6)
+
+  fromUom    Uom     @relation("fromUom", fields: [fromUomId], references: [id], onDelete: Cascade)
+  toUom      Uom     @relation("toUom", fields: [toUomId], references: [id], onDelete: Cascade)
+
+  @@unique([fromUomId, toUomId])
+}
+
+// Material Category
+model MaterialCategory {
+  id          String     @id @default(cuid())
+  code        String     @unique
+  name        String
+  description String?
+  notes       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  materials Material[]
+}
+
+// Material Master
+model Material {
+  id            String           @id @default(cuid())
+  code          String           @unique
+  name          String
+  categoryId    String
+  baseUomId     String
+  minStock      Decimal?         @db.Decimal(18, 3)
+  reorderPoint  Decimal?         @db.Decimal(18, 3)
+  isConsumable  Boolean          @default(true)
+  photoUrl      String?
+  specs         String?
+  isActive      Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  category      MaterialCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  baseUom       Uom              @relation(fields: [baseUomId], references: [id], onDelete: Restrict)
+
+  stocks        Stock[]
+  ledgers       StockLedger[]
+  grnItems      GoodsReceiptItem[]
+  issueItems    GoodsIssueItem[]
+  transfers     StockTransfer[]
+  adjItems      StockAdjustmentItem[]
+  countLines    StockCountLine[]
+
+  @@index([name])
+  @@index([categoryId])
+}
+
+// Warehouse
+model Warehouse {
+  id           String         @id @default(cuid())
+  code         String         @unique
+  name         String
+  address      String?
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  locations    Location[]
+  grns         GoodsReceipt[]
+  issues       GoodsIssue[]
+  counts       StockCount[]
+}
+
+// Location (hierarchical: Warehouse > Zone > Rack > Bin)
+model Location {
+  id           String       @id @default(cuid())
+  warehouseId  String
+  parentId     String?
+  type         LocationType
+  code         String
+  name         String?
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  warehouse    Warehouse    @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  parent       Location?    @relation("LocationToLocation", fields: [parentId], references: [id])
+  children     Location[]   @relation("LocationToLocation")
+
+  stocks       Stock[]
+  ledgers      StockLedger[]
+  grnItems     GoodsReceiptItem[]
+  issueItems   GoodsIssueItem[]
+  transfersFrom StockTransfer[] @relation("FromLoc")
+  transfersTo   StockTransfer[] @relation("ToLoc")
+  adjItems     StockAdjustmentItem[]
+  countLines   StockCountLine[]
+
+  @@unique([warehouseId, code])
+  @@index([warehouseId, type])
+}
+
+// Stock Balance
+model Stock {
+  id         String   @id @default(cuid())
+  materialId String
+  locationId String
+  qtyOnHand  Decimal  @db.Decimal(18, 3) @default(0)
+  avgCost    Decimal? @db.Decimal(18, 6)
+
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([materialId, locationId])
+  @@index([locationId])
+}
+
+// Stock Ledger (Kartu Stok)
+model StockLedger {
+  id          String     @id @default(cuid())
+  ts          DateTime   @default(now())
+  materialId  String
+  locationId  String
+  ledgerType  LedgerType
+  refTable    String?
+  refId       String?
+  qty         Decimal    @db.Decimal(18, 3)
+  beforeQty   Decimal?   @db.Decimal(18, 3)
+  afterQty    Decimal?   @db.Decimal(18, 3)
+  note        String?
+
+  material    Material   @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  location    Location   @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@index([materialId, ts])
+  @@index([locationId, ts])
+  @@index([refTable, refId])
+}
+
+// Goods Receipt Note (GRN)
+model GoodsReceipt {
+  id          String             @id @default(cuid())
+  receiptNo   String             @unique
+  warehouseId String
+  date        DateTime
+  note        String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  warehouse   Warehouse          @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  items       GoodsReceiptItem[]
+}
+
+model GoodsReceiptItem {
+  id              String        @id @default(cuid())
+  goodsReceiptId  String
+  materialId      String
+  locationId      String
+  uomId           String
+  qty             Decimal       @db.Decimal(18, 3)
+  note            String?
+
+  goodsReceipt    GoodsReceipt  @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  material        Material      @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  location        Location      @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  uom             Uom           @relation(fields: [uomId], references: [id], onDelete: Restrict)
+
+  @@index([goodsReceiptId])
+  @@index([materialId])
+}
+
+// Goods Issue
+model GoodsIssue {
+  id          String           @id @default(cuid())
+  issueNo     String           @unique
+  warehouseId String
+  date        DateTime
+  requesterId String?
+  costCenter  String?
+  note        String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  warehouse   Warehouse        @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  items       GoodsIssueItem[]
+}
+
+model GoodsIssueItem {
+  id           String      @id @default(cuid())
+  goodsIssueId String
+  materialId   String
+  locationId   String
+  uomId        String
+  qty          Decimal     @db.Decimal(18, 3)
+  note         String?
+
+  goodsIssue   GoodsIssue  @relation(fields: [goodsIssueId], references: [id], onDelete: Cascade)
+  material     Material    @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  location     Location    @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  uom          Uom         @relation(fields: [uomId], references: [id], onDelete: Restrict)
+
+  @@index([goodsIssueId])
+  @@index([materialId])
+}
+
+// Stock Adjustment
+model StockAdjustment {
+  id        String                 @id @default(cuid())
+  adjNo     String                 @unique
+  date      DateTime
+  reason    String?
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+
+  items     StockAdjustmentItem[]
+}
+
+model StockAdjustmentItem {
+  id                String           @id @default(cuid())
+  stockAdjustmentId String
+  materialId        String
+  locationId        String
+  qtyDiff           Decimal          @db.Decimal(18, 3)
+  note              String?
+
+  stockAdjustment   StockAdjustment  @relation(fields: [stockAdjustmentId], references: [id], onDelete: Cascade)
+  material          Material         @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  location          Location         @relation(fields: [locationId], references: [id], onDelete: Restrict)
+}
+
+// Stock Transfer
+model StockTransfer {
+  id         String   @id @default(cuid())
+  transferNo String   @unique
+  date       DateTime
+  fromLocId  String
+  toLocId    String
+  materialId String
+  uomId      String
+  qty        Decimal  @db.Decimal(18, 3)
+  note       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  fromLoc    Location @relation("FromLoc", fields: [fromLocId], references: [id], onDelete: Restrict)
+  toLoc      Location @relation("ToLoc", fields: [toLocId], references: [id], onDelete: Restrict)
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  uom        Uom      @relation(fields: [uomId], references: [id], onDelete: Restrict)
+
+  @@index([fromLocId])
+  @@index([toLocId])
+  @@index([materialId])
+}
+
+// Stock Count (Opname)
+model StockCount {
+  id          String           @id @default(cuid())
+  countNo     String           @unique
+  warehouseId String
+  date        DateTime
+  areaNote    String?
+  status      String           @default("OPEN") // OPEN | POSTED
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  warehouse   Warehouse        @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  lines       StockCountLine[]
+}
+
+model StockCountLine {
+  id           String     @id @default(cuid())
+  stockCountId String
+  materialId   String
+  locationId   String
+  countedQty   Decimal    @db.Decimal(18, 3)
+  systemQty    Decimal    @db.Decimal(18, 3)
+  diffQty      Decimal    @db.Decimal(18, 3)
+  note         String?
+
+  stockCount   StockCount @relation(fields: [stockCountId], references: [id], onDelete: Cascade)
+  material     Material   @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  location     Location   @relation(fields: [locationId], references: [id], onDelete: Restrict)
+
+  @@index([stockCountId])
+}
+
+// ============================================================================
+// PB IMPORT MODULE - Supplier & Timbangan Excel Import
+// ============================================================================
+
+enum ImportStatus {
+  DRAFT
+  POSTED
+}
+
+// PB Import Batch - Main batch tracking for Excel uploads
+model PbImportBatch {
+  id          String       @id @default(cuid())
+  fileName    String
+  fileHash    String       @unique // SHA256 hash for idempotency
+  periodFrom  DateTime?    // Extracted from "Dari Tgl ... s/d ..."
+  periodTo    DateTime?
+  printedAt   DateTime?    // Extracted from "Tanggal Cetak ..."
+  note        String?
+  status      ImportStatus @default(DRAFT)
+  createdById String?
+  createdAt   DateTime     @default(now())
+  postedAt    DateTime?
+
+  rows    PbImportRow[]
+  tickets PbTicket[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([fileHash])
+}
+
+// PB Import Row - Staging area for Excel rows before commit
+model PbImportRow {
+  id        String   @id @default(cuid())
+  batchId   String
+
+  // Sheet info (multi-sheet support)
+  sheetName String   @default("Sheet1")
+  rowIndex  Int      @default(0)
+
+  // Raw Excel data
+  noSeri       String?
+  noPolisi     String?
+  namaRelasi   String?
+  produk       String?
+  timbang1Kg   Decimal? @db.Decimal(18, 3)
+  timbang2Kg   Decimal? @db.Decimal(18, 3)
+  netto1Kg     Decimal? @db.Decimal(18, 3)
+  potPct       Decimal? @db.Decimal(5, 2)
+  potKg        Decimal? @db.Decimal(18, 3)
+  terimaKg     Decimal? @db.Decimal(18, 3)
+  harga        Decimal? @db.Decimal(18, 2)
+  total        Decimal? @db.Decimal(18, 2)
+  pph          Decimal? @db.Decimal(18, 2)
+  totalPay     Decimal? @db.Decimal(18, 2)
+  tanggal      DateTime?
+  jamMasuk     DateTime?
+  jamKeluar    DateTime?
+  lokasiKebun  String?
+  payeeName    String?
+  bankName     String?
+  accountNo    String?
+  penimbang    String?
+
+  // Mapped master data
+  supplierId String?
+  vehicleId  String?
+
+  // Unique key for idempotency: sha256(fileHash + sheetName + (noSeri || rowIndex))
+  uniqueKey String   @unique
+  createdAt DateTime @default(now())
+
+  batch  PbImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  ticket PbTicket?
+
+  @@index([batchId])
+  @@index([sheetName])
+  @@index([supplierId])
+  @@index([vehicleId])
+  @@index([uniqueKey])
+}
+
+// PB Ticket - Final posted tickets (1:1 with valid PbImportRow)
+model PbTicket {
+  id            String   @id @default(cuid())
+  batchId       String
+  rowId         String   @unique // 1:1 relation with PbImportRow
+
+  // Sheet info (for audit trail)
+  sheetName     String   @default("Sheet1")
+
+  // Ticket data
+  date          DateTime
+  ticketNo      String   // From noSeri
+  vehiclePlate  String?
+  supplierId    String?
+  cluster       String?  // From lokasiKebun
+  wbInAt        DateTime? // Parsed from tanggal + jamMasuk
+  wbOutAt       DateTime? // Parsed from tanggal + jamKeluar
+
+  // Weights (kg)
+  grossKg    Decimal @db.Decimal(18, 3) // timbang1Kg
+  tareKg     Decimal @db.Decimal(18, 3) // timbang2Kg
+  netto1Kg   Decimal @db.Decimal(18, 3)
+  potPct     Decimal @db.Decimal(5, 2)
+  potKg      Decimal @db.Decimal(18, 3)
+  receiveKg  Decimal @db.Decimal(18, 3) // terimaKg
+
+  // Financial
+  price      Decimal @db.Decimal(18, 2)
+  total      Decimal @db.Decimal(18, 2)
+  pph        Decimal @db.Decimal(18, 2)
+  totalPay   Decimal @db.Decimal(18, 2)
+
+  // Payment info
+  payeeName  String?
+  bankName   String?
+  accountNo  String?
+
+  // Metadata
+  weigherName String?
+  createdAt   DateTime @default(now())
+
+  batch PbImportBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  row   PbImportRow   @relation(fields: [rowId], references: [id], onDelete: Restrict)
+
+  @@index([batchId])
+  @@index([sheetName])
+  @@index([date])
+  @@index([supplierId])
+  @@index([cluster])
+  @@index([ticketNo])
+}
