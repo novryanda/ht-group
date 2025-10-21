@@ -6,6 +6,24 @@
 import { type NextAuthConfig } from "next-auth";
 
 export const baseAuthConfig = {
+  // Trust host for production deployment (required for custom domains)
+  trustHost: true,
+  
+  // Cookie configuration for production
+  cookies: {
+    sessionToken: {
+      name: process.env.NODE_ENV === "production" 
+        ? "__Secure-authjs.session-token" 
+        : "authjs.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+  },
+  
   callbacks: {
     jwt({ token, user }) {
       if (user) {
