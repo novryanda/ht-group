@@ -182,7 +182,7 @@ export function TransporterForm() {
   const onSubmit = async (data: TransporterFormData) => {
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/transporters", {
+      const response = await fetch("/api/pt-pks/transporters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),

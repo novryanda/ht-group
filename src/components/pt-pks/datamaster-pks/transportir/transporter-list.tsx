@@ -127,8 +127,8 @@ export function TransporterList() {
       if (statusFilter) params.append("status", statusFilter);
       if (cityFilter) params.append("city", cityFilter);
 
-      const response = await fetch(`/api/transporters?${params.toString()}`);
-      const result: TransporterListResponse = await response.json();
+  const response = await fetch(`/api/pt-pks/transporters?${params.toString()}`);
+  const result: TransporterListResponse = await response.json();
 
       if (result.success && result.data) {
         setTransporters(result.data);
@@ -195,7 +195,7 @@ export function TransporterList() {
 
     setIsToggling(true);
     try {
-      const response = await fetch(`/api/transporters/${transporterToToggle.id}/toggle-status`, {
+      const response = await fetch(`/api/pt-pks/transporters/${transporterToToggle.id}/toggle-status`, {
         method: "PATCH",
       });
 
@@ -224,7 +224,7 @@ export function TransporterList() {
 
     setIsDeleting(true);
     try {
-      const response = await fetch(`/api/transporters/${transporterToDelete.id}`, {
+      const response = await fetch(`/api/pt-pks/transporters/${transporterToDelete.id}`, {
         method: "DELETE",
       });
 
@@ -263,7 +263,7 @@ export function TransporterList() {
     // Delete sequentially
     for (const id of Array.from(selectedTransporters)) {
       try {
-        const response = await fetch(`/api/transporters/${id}`, {
+        const response = await fetch(`/api/pt-pks/transporters/${id}`, {
           method: "DELETE",
         });
 

@@ -128,7 +128,7 @@ export function BuyerForm() {
       setIsCheckingDuplicate(true);
       try {
         const params = new URLSearchParams({ npwp: npwpValue });
-        const response = await fetch(`/api/buyers/check?${params.toString()}`);
+        const response = await fetch(`/api/pt-pks/buyers/check?${params.toString()}`);
         const result = await response.json();
 
         if (result.success && result.data) {
@@ -161,7 +161,7 @@ export function BuyerForm() {
           city: data.city,
           province: data.province,
         });
-        const response = await fetch(`/api/buyers/check?${params.toString()}`);
+        const response = await fetch(`/api/pt-pks/buyers/check?${params.toString()}`);
         const result = await response.json();
 
         if (result.success && result.data && result.data.isDuplicate) {
@@ -191,7 +191,7 @@ export function BuyerForm() {
         })),
       };
 
-      const response = await fetch("/api/buyers", {
+      const response = await fetch("/api/pt-pks/buyers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(submitData),

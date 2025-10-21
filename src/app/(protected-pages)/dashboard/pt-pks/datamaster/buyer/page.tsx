@@ -1,4 +1,4 @@
-﻿import { BuyerList } from "~/components/pt-pks/datamaster/buyer/buyer-list";
+﻿import { BuyerList } from "~/components/pt-pks/datamaster-pks/buyer/buyer-list";
 
 export default function PKSBuyerPage() {
   return (

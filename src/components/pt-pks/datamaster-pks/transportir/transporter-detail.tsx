@@ -123,7 +123,7 @@ export function TransporterDetail({ transporterId }: TransporterDetailProps) {
     const loadTransporter = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`/api/transporters/${transporterId}`);
+        const response = await fetch(`/api/pt-pks/transporters/${transporterId}`);
         const result = await response.json();
 
         if (result.success && result.data) {

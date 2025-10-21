@@ -10,7 +10,7 @@ import {
   type UniqueCheckResponse
 } from "~/server/types/pt-pks/supplier";
 
-const API_BASE_URL = "/api/suppliers";
+const API_BASE_URL = "/api/pt-pks/suppliers";
 
 /**
  * Supplier API Client for frontend usage

@@ -1,61 +1,15 @@
-import type { Session } from "next-auth";
+﻿import type { Session } from "next-auth";
+import type { PTCompany } from "./rbac-lite";
 
-export type UserRole =
-  | "GROUP_VIEWER"
-  | "EXECUTIVE"
-  | "PT_MANAGER"
-  | "PT_NILO_ADMIN"
-  | "PT_ZTA_ADMIN"
-  | "PT_TAM_ADMIN"
-  | "PT_HTK_ADMIN"
-  | "PT_PKS_ADMIN"
-  | "UNIT_SUPERVISOR"
-  | "TECHNICIAN"
-  | "OPERATOR"
-  | "HR"
-  | "FINANCE_AR"
-  | "FINANCE_AP"
-  | "GL_ACCOUNTANT";
+// Re-export types and constants from rbac-lite for shared usage
+export type {
+  UserRole,
+  PTCompany,
+} from "./rbac-lite";
 
-export interface PTCompany {
-  code: string;
-  name: string;
-  adminRole: UserRole;
-  dashboardPath: string;
-}
-
-export const PT_COMPANIES: PTCompany[] = [
-  {
-    code: "PT-NILO",
-    name: "PT NILO",
-    adminRole: "PT_NILO_ADMIN",
-    dashboardPath: "/dashboard/pt-nilo",
-  },
-  {
-    code: "PT-ZTA",
-    name: "PT ZTA",
-    adminRole: "PT_ZTA_ADMIN",
-    dashboardPath: "/dashboard/pt-zta",
-  },
-  {
-    code: "PT-TAM",
-    name: "PT TAM",
-    adminRole: "PT_TAM_ADMIN",
-    dashboardPath: "/dashboard/pt-tam",
-  },
-  {
-    code: "PT-HTK",
-    name: "PT HTK",
-    adminRole: "PT_HTK_ADMIN",
-    dashboardPath: "/dashboard/pt-htk",
-  },
-  {
-    code: "PT-PKS",
-    name: "PT PKS",
-    adminRole: "PT_PKS_ADMIN",
-    dashboardPath: "/dashboard/pt-pks",
-  },
-];
+export {
+  PT_COMPANIES,
+} from "./rbac-lite";
 
 /**
  * Check if user has access to a specific PT company
@@ -71,7 +25,8 @@ export function hasCompanyAccess(session: Session | null, companyCode: string): 
   }
 
   // PT-specific admins can only access their assigned company
-  const ptCompany = PT_COMPANIES.find(pt => pt.code === companyCode);
+  const { PT_COMPANIES } = require("./rbac-lite");
+  const ptCompany = PT_COMPANIES.find((pt: any) => pt.code === companyCode);
   if (ptCompany && role === ptCompany.adminRole) {
     return true;
   }
@@ -87,14 +42,15 @@ export function getUserPTCompany(session: Session | null): PTCompany | null {
   if (!session?.user) return null;
 
   const { role, companyCode } = session.user as any;
+  const { PT_COMPANIES } = require("./rbac-lite");
 
   // Find PT company by role
-  const ptByRole = PT_COMPANIES.find(pt => pt.adminRole === role);
+  const ptByRole = PT_COMPANIES.find((pt: any) => pt.adminRole === role);
   if (ptByRole) return ptByRole;
 
   // Find PT company by company code
   if (companyCode) {
-    return PT_COMPANIES.find(pt => pt.code === companyCode) || null;
+    return PT_COMPANIES.find((pt: any) => pt.code === companyCode) || null;
   }
 
   return null;
@@ -107,6 +63,7 @@ export function getAccessiblePTCompanies(session: Session | null): PTCompany[] {
   if (!session?.user) return [];
 
   const { role } = session.user as any;
+  const { PT_COMPANIES } = require("./rbac-lite");
 
   // Executives and group viewers can access all companies
   if (role === "EXECUTIVE" || role === "GROUP_VIEWER") {
@@ -132,6 +89,7 @@ export function canAccessRoute(session: Session | null, route: string): boolean 
   }
 
   // Check if route is PT-specific (now under /dashboard/pt-*)
+  const { PT_COMPANIES } = require("./rbac-lite");
   for (const pt of PT_COMPANIES) {
     if (route.startsWith(`/dashboard/${pt.code.toLowerCase()}`)) {
       return hasCompanyAccess(session, pt.code);
@@ -172,7 +130,8 @@ export function isPTAdmin(session: Session | null): boolean {
   if (!session?.user) return false;
 
   const { role } = session.user as any;
-  return PT_COMPANIES.some(pt => pt.adminRole === role);
+  const { PT_COMPANIES } = require("./rbac-lite");
+  return PT_COMPANIES.some((pt: any) => pt.adminRole === role);
 }
 
 /**
@@ -217,6 +176,7 @@ export function filterMenuItemsByAccess(session: Session | null, menuItems: any[
 function extractPTCodeFromMenuItem(item: any): string | null {
   if (!item.title) return null;
 
+  const { PT_COMPANIES } = require("./rbac-lite");
   for (const pt of PT_COMPANIES) {
     if (item.title.includes(pt.name)) {
       return pt.code;
@@ -239,6 +199,7 @@ export function validateCompanyAccess(session: Session | null, companyCode: stri
  * Get company code from route path
  */
 export function getCompanyCodeFromRoute(route: string): string | null {
+  const { PT_COMPANIES } = require("./rbac-lite");
   for (const pt of PT_COMPANIES) {
     const ptPath = `/dashboard/${pt.code.toLowerCase()}`;
     if (route.startsWith(ptPath)) {
@@ -247,4 +208,3 @@ export function getCompanyCodeFromRoute(route: string): string | null {
   }
   return null;
 }
-

@@ -1,8 +1,17 @@
+/**
+ * Optimized middleware for Edge Runtime
+ * Uses lightweight RBAC functions and minimal dependencies
+ * Middleware automatically runs on Edge Runtime in Next.js
+ */
 import { NextResponse } from "next/server";
 import { auth } from "~/server/auth";
-import { canAccessRoute, getCompanyCodeFromRoute, hasCompanyAccess, getDefaultRedirectPath } from "~/lib/rbac";
+import { 
+  canAccessRoute, 
+  getDefaultRedirectPath,
+  type LiteSession 
+} from "~/lib/rbac-lite";
 
-function hasRouteAccess(session: any, pathname: string): boolean {
+function hasRouteAccess(session: LiteSession, pathname: string): boolean {
   // Allow access to general routes
   if (pathname === "/" || pathname === "/dashboard" || pathname === "/unauthorized") {
     return true;
@@ -40,8 +49,8 @@ export default auth((req) => {
     return NextResponse.redirect(loginUrl);
   }
 
-  // User is authenticated
-  const session = req.auth;
+  // User is authenticated - cast to lightweight session type
+  const session: LiteSession = req.auth;
 
   // If trying to access login page, redirect to user's default dashboard
   if (isLoginPage) {

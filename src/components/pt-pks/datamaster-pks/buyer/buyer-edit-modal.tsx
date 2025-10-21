@@ -99,7 +99,7 @@ export function BuyerEditModal({ open, onOpenChange, onSuccess, buyerId }: Buyer
   useEffect(() => {
     if (open && buyerId) {
       setIsLoadingData(true);
-      fetch(`/api/buyers/${buyerId}`)
+      fetch(`/api/pt-pks/buyers/${buyerId}`)
         .then((res) => res.json())
         .then((result) => {
           if (result.success && result.data) {
@@ -159,7 +159,7 @@ export function BuyerEditModal({ open, onOpenChange, onSuccess, buyerId }: Buyer
         })),
       };
 
-      const response = await fetch(`/api/buyers/${buyerId}`, {
+      const response = await fetch(`/api/pt-pks/buyers/${buyerId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(submitData),

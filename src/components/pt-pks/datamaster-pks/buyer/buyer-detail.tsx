@@ -88,7 +88,7 @@ export function BuyerDetail({ buyerId }: BuyerDetailProps) {
     const loadBuyer = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`/api/buyers/${buyerId}`);
+        const response = await fetch(`/api/pt-pks/buyers/${buyerId}`);
         const result = await response.json();
 
         if (result.success && result.data) {

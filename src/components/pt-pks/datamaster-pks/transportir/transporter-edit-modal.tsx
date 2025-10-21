@@ -204,7 +204,7 @@ export function TransporterEditModal({
 
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/transporters/${transporterId}`);
+      const response = await fetch(`/api/pt-pks/transporters/${transporterId}`);
       const result = await response.json();
 
       if (result.success && result.data) {
@@ -302,7 +302,7 @@ export function TransporterEditModal({
 
     setIsSaving(true);
     try {
-      const response = await fetch(`/api/transporters/${transporterId}`, {
+      const response = await fetch(`/api/pt-pks/transporters/${transporterId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),

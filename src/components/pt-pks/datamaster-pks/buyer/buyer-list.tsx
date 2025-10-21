@@ -116,7 +116,7 @@ export function BuyerList() {
       if (typeFilter) params.append("type", typeFilter);
       if (statusFilter) params.append("status", statusFilter);
 
-      const response = await fetch(`/api/buyers?${params.toString()}`);
+      const response = await fetch(`/api/pt-pks/buyers?${params.toString()}`);
       const result: BuyerListResponse = await response.json();
 
       if (result.success && result.data) {
@@ -190,7 +190,7 @@ export function BuyerList() {
 
     setIsDeleting(true);
     try {
-      const response = await fetch(`/api/buyers/${buyerToDelete.id}`, {
+      const response = await fetch(`/api/pt-pks/buyers/${buyerToDelete.id}`, {
         method: "DELETE",
       });
 
@@ -247,7 +247,7 @@ export function BuyerList() {
       // Delete each buyer sequentially
       for (const id of buyerIds) {
         try {
-          const response = await fetch(`/api/buyers/${id}`, {
+          const response = await fetch(`/api/pt-pks/buyers/${id}`, {
             method: "DELETE",
           });
 
