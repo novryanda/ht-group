@@ -2,9 +2,12 @@
  * Optimized middleware for Edge Runtime
  * Uses lightweight RBAC functions and minimal dependencies
  * Middleware automatically runs on Edge Runtime in Next.js
+ * 
+ * IMPORTANT: This middleware must be Edge-compatible.
+ * Do NOT import Prisma, bcryptjs, or any Node.js-only modules here.
  */
 import { NextResponse } from "next/server";
-import { auth } from "~/server/auth";
+import type { NextRequest } from "next/server";
 import { 
   canAccessRoute, 
   getDefaultRedirectPath,
@@ -21,7 +24,7 @@ function hasRouteAccess(session: LiteSession, pathname: string): boolean {
   return canAccessRoute(session, pathname);
 }
 
-export default auth((req) => {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // API routes and static files - allow through
@@ -34,8 +37,13 @@ export default auth((req) => {
   const isUnauthorizedPage = pathname === "/unauthorized";
   const isPublicRoute = isLoginPage || isUnauthorizedPage;
 
-  // If user is not authenticated
-  if (!req.auth) {
+  // Get session from NextAuth using auth-token cookie
+  // NextAuth v5 stores session in encrypted JWT cookie
+  const sessionCookie = req.cookies.get("authjs.session-token") || 
+                        req.cookies.get("__Secure-authjs.session-token");
+
+  // If no session cookie exists
+  if (!sessionCookie) {
     // Allow access to public routes
     if (isPublicRoute) {
       return NextResponse.next();
@@ -49,30 +57,64 @@ export default auth((req) => {
     return NextResponse.redirect(loginUrl);
   }
 
-  // User is authenticated - cast to lightweight session type
-  const session: LiteSession = req.auth;
+  // For authenticated routes, we need to decode the JWT
+  // Use Edge-compatible auth that doesn't import Prisma/bcryptjs
+  try {
+    // Import edgeAuth which is safe for Edge Runtime
+    const { edgeAuth } = await import("~/server/auth/edge");
+    
+    // Get session using NextAuth's Edge-compatible auth helper
+    const session = await edgeAuth();
 
-  // If trying to access login page, redirect to user's default dashboard
-  if (isLoginPage) {
-    const defaultPath = getDefaultRedirectPath(session);
-    return NextResponse.redirect(new URL(defaultPath, req.url));
-  }
+    // If session doesn't exist despite cookie (expired/invalid)
+    if (!session) {
+      if (isPublicRoute) {
+        return NextResponse.next();
+      }
 
-  // If accessing root, redirect to user's default dashboard
-  if (pathname === "/") {
-    const defaultPath = getDefaultRedirectPath(session);
-    return NextResponse.redirect(new URL(defaultPath, req.url));
-  }
-
-  // Check role-based permissions for protected routes
-  if (!isPublicRoute) {
-    if (!hasRouteAccess(session, pathname)) {
-      return NextResponse.redirect(new URL("/unauthorized", req.url));
+      const loginUrl = new URL("/login", req.url);
+      if (pathname !== "/") {
+        loginUrl.searchParams.set("callbackUrl", pathname);
+      }
+      return NextResponse.redirect(loginUrl);
     }
-  }
 
-  return NextResponse.next();
-});
+    // Cast to lightweight session type
+    const liteSession: LiteSession = session;
+
+    // If trying to access login page, redirect to user's default dashboard
+    if (isLoginPage) {
+      const defaultPath = getDefaultRedirectPath(liteSession);
+      return NextResponse.redirect(new URL(defaultPath, req.url));
+    }
+
+    // If accessing root, redirect to user's default dashboard
+    if (pathname === "/") {
+      const defaultPath = getDefaultRedirectPath(liteSession);
+      return NextResponse.redirect(new URL(defaultPath, req.url));
+    }
+
+    // Check role-based permissions for protected routes
+    if (!isPublicRoute) {
+      if (!hasRouteAccess(liteSession, pathname)) {
+        return NextResponse.redirect(new URL("/unauthorized", req.url));
+      }
+    }
+
+    return NextResponse.next();
+  } catch (error) {
+    console.error("❌ Middleware error:", error);
+    
+    // If there's an error in middleware, allow public routes
+    if (isPublicRoute) {
+      return NextResponse.next();
+    }
+    
+    // For protected routes, redirect to login on error
+    const loginUrl = new URL("/login", req.url);
+    return NextResponse.redirect(loginUrl);
+  }
+}
 
 export const config = {
   matcher: [

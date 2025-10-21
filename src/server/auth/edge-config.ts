@@ -4,32 +4,11 @@
  * to keep Edge Function bundle size small
  */
 import { type NextAuthConfig } from "next-auth";
+import { baseAuthConfig } from "./base-config";
 
 export const edgeAuthConfig: NextAuthConfig = {
-  session: {
-    strategy: "jwt",
-  },
-  pages: {
-    signIn: "/login",
-  },
-  callbacks: {
-    jwt({ token, user }) {
-      if (user) {
-        token.role = (user as any).role;
-        token.companyCode = (user as any).companyCode;
-        token.employeeId = (user as any).employeeId;
-      }
-      return token;
-    },
-    session({ session, token }) {
-      if (token) {
-        (session.user as any).role = token.role;
-        (session.user as any).companyCode = token.companyCode;
-        (session.user as any).employeeId = token.employeeId;
-      }
-      return session;
-    },
-  },
-  // No providers here - they're only needed in the main config
+  ...baseAuthConfig,
+  // Empty providers array - actual auth is handled by main config
   providers: [],
 };
+

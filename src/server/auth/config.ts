@@ -2,8 +2,14 @@ import { type DefaultSession, type NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { db } from "../db";
+import { baseAuthConfig } from "./base-config";
 
+/**
+ * Full config with providers - includes database access
+ * Only used in API routes, NOT in middleware
+ */
 export const authConfig: NextAuthConfig = {
+  ...baseAuthConfig,
   providers: [
     Credentials({
       credentials: {
@@ -78,30 +84,6 @@ export const authConfig: NextAuthConfig = {
       },
     }),
   ],
-  callbacks: {
-    jwt({ token, user }) {
-      if (user) {
-        token.role = (user as any).role;
-        token.companyCode = (user as any).companyCode;
-        token.employeeId = (user as any).employeeId;
-      }
-      return token;
-    },
-    session({ session, token }) {
-      if (token) {
-        (session.user as any).role = token.role;
-        (session.user as any).companyCode = token.companyCode;
-        (session.user as any).employeeId = token.employeeId;
-      }
-      return session;
-    },
-  },
-  session: {
-    strategy: "jwt",
-  },
-  pages: {
-    signIn: "/login",
-  },
 };
 
 declare module "next-auth" {
