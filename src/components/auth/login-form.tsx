@@ -98,21 +98,6 @@ export function LoginForm() {
         </div>
       </form>
 
-      <div className="text-sm text-muted-foreground">
-        <p className="font-medium">Demo Credentials:</p>
-        <p>Email: executive@ht-group.com</p>
-        <p>Password: password123</p>
-        <div className="mt-2">
-          <p className="text-xs">PT-specific admins:</p>
-          <p className="text-xs">admin.nilo@ht-group.com (PT NILO)</p>
-          <p className="text-xs">admin.zta@ht-group.com (PT ZTA)</p>
-          <p className="text-xs">admin.tam@ht-group.com (PT TAM)</p>
-          <p className="text-xs">admin.htk@ht-group.com (PT HTK)</p>
-          <p className="text-xs">admin.pks@ht-group.com (PT PKS)</p>
-          <p className="text-xs">executive@ht-group.com (Group Executive)</p>
-        </div>
-      </div>
-
     </div>
   );
 }
