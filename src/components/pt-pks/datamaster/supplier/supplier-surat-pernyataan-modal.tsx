@@ -8,7 +8,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "~/components/ui/input";
 import { Card, CardContent } from "~/components/ui/card";
 import { FileText, Printer, X, Download } from "lucide-react";
-import { type Supplier } from "~/server/types/supplier";
+import { type Supplier } from "~/server/types/pt-pks/supplier";
 
 const suratPernyataanSchema = z.object({
   bank: z.string().min(1, "Nama bank wajib diisi"),

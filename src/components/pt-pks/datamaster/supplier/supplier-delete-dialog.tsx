@@ -12,7 +12,7 @@ import {
 } from "~/components/ui/alert-dialog";
 import { Trash2 } from "lucide-react";
 import { SupplierApiClient } from "~/lib/supplier-utils";
-import { type Supplier } from "~/server/types/supplier";
+import { type Supplier } from "~/server/types/pt-pks/supplier";
 
 interface SupplierDeleteDialogProps {
   supplier: Supplier | null;

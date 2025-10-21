@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { DashboardService } from "~/server/services/dashboard.service";
+import { DashboardService } from "~/server/services/pt-pks/dashboard.service";
 import { auth } from "~/server/auth";
 import { validateCompanyAccess } from "~/lib/rbac";
 

@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { Search, Eye, Edit, Trash2, FileText } from "lucide-react";
 import { SupplierApiClient } from "~/lib/supplier-utils";
-import { type Supplier, type SupplierFilter, SupplierTypeLabels } from "~/server/types/supplier";
+import { type Supplier, type SupplierFilter, SupplierTypeLabels } from "~/server/types/pt-pks/supplier";
 import { SupplierType } from "@prisma/client";
 import { SupplierViewModal } from "./supplier-view-modal";
 import { SupplierEditModal } from "./supplier-edit-modal";

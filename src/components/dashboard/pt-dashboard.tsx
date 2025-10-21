@@ -37,6 +37,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import type { PieLabelRenderProps } from "recharts";
 
 interface PTDashboardProps {
   companyId: string;
@@ -563,7 +564,11 @@ export function PTDashboard({ companyId, companyName, companyCode }: PTDashboard
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={(props: PieLabelRenderProps) => {
+                        const { name, percent } = props;
+                        const pct = typeof percent === "number" ? (percent * 100).toFixed(0) : "0";
+                        return `${name ?? ""} ${pct}%`;
+                      }}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"

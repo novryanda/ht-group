@@ -10,10 +10,10 @@ import { Checkbox } from "~/components/ui/checkbox";
 import { Save, Plus, Trash2, X } from "lucide-react";
 import { SupplierType } from "@prisma/client";
 import { SupplierApiClient } from "~/lib/supplier-utils";
-import { type Supplier, type ProfilKebunItem } from "~/server/types/supplier";
+import { type Supplier, type ProfilKebunItem } from "~/server/types/pt-pks/supplier";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { PajakPKP } from "@prisma/client";
-import { PajakPKPLabels } from "~/server/types/supplier";
+import { PajakPKPLabels } from "~/server/types/pt-pks/supplier";
 
 // Form schema for editing - make it more flexible
 const editSupplierSchema = z.object({

@@ -31,9 +31,7 @@ const buyerDocSchema = z.object({
 });
 
 const buyerFormSchema = z.object({
-  type: z.enum(["COMPANY", "PERSON"], {
-    errorMap: () => ({ message: "Tipe buyer wajib dipilih" }),
-  }),
+  type: z.enum(["COMPANY", "PERSON"]),
   legalName: z.string().min(2, "Nama legal minimal 2 karakter"),
   tradeName: z.string().optional(),
   npwp: z
@@ -41,9 +39,7 @@ const buyerFormSchema = z.object({
     .regex(/^\d{15}$/, "NPWP harus 15 digit angka")
     .optional()
     .or(z.literal("")),
-  pkpStatus: z.enum(["NON_PKP", "PKP_11", "PKP_1_1"], {
-    errorMap: () => ({ message: "Status PKP wajib dipilih" }),
-  }),
+  pkpStatus: z.enum(["NON_PKP", "PKP_11", "PKP_1_1"]),
   addressLine: z.string().min(5, "Alamat minimal 5 karakter"),
   city: z.string().min(2, "Kota minimal 2 karakter"),
   province: z.string().min(2, "Provinsi minimal 2 karakter"),

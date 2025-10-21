@@ -3,7 +3,7 @@ import { Button } from "~/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import { Card, CardContent } from "~/components/ui/card";
 import { Printer, Download, X } from "lucide-react";
-import { type Supplier } from "~/server/types/supplier";
+import { type Supplier } from "~/server/types/pt-pks/supplier";
 
 interface SupplierViewModalProps {
   supplier: Supplier | null;

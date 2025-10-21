@@ -53,6 +53,7 @@ import {
   Cog,
   Receipt,
   UserPlus,
+  ClipboardMinus,
   Truck,
   Scale,
 } from "lucide-react";
@@ -235,9 +236,14 @@ const ptNavigationData: Record<string, PTNavigationData> = {
           { title: "Pembayaran Produksi Harian", url: "/dashboard/pt-pks/transaksipks/produksi-harian", icon: Receipt },
         ],
       },
+      {
+        title: "Laporan",
+        items: [
+          { title: "Laporan Produksi", url: "/dashboard/pt-pks/transaksipks/supplier-timbangan", icon: Scale },
+        ],
+      },
     ],
     common: [
-      // Removed duplicate Dashboard entry - it's already in navigationItems
     ],
   },
 };

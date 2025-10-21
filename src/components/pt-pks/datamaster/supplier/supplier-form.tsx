@@ -12,7 +12,7 @@ import { CoordinateMapInput } from "~/components/ui/coordinate-map-input";
 import { Eye, Save, Plus, Trash2 } from "lucide-react";
 import { SupplierType, PajakPKP } from "@prisma/client";
 import { SupplierApiClient } from "~/lib/supplier-utils";
-import { type CreateSupplierForm, type ProfilKebunItem, PajakPKPLabels } from "~/server/types/supplier";
+import { type CreateSupplierForm, type ProfilKebunItem, PajakPKPLabels } from "~/server/types/pt-pks/supplier";
 import { SupplierFormPDFPreview } from "./supplier-form-pdf-preview";
 
 const supplierFormSchema = z.object({

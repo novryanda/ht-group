@@ -5,7 +5,7 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Badge } from "~/components/ui/badge";
-import { type Supplier, SupplierTypeLabels } from "~/server/types/supplier";
+import { type Supplier, SupplierTypeLabels } from "~/server/types/pt-pks/supplier";
 
 // Fix for default markers in React Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;

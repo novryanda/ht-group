@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { FamilyDetailSheet } from "./family-detail-sheet";
 import { FamilyFormModal } from "./family-form-modal";
 import { EmployeeFormModal } from "./employee-form-modal";
-import type { EmployeeListItemDTO } from "~/server/types/karyawan";
+import type { EmployeeListItemDTO } from "~/server/types/pt-pks/karyawan";
 
 interface PaginationState {
   page: number;

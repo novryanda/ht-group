@@ -10,7 +10,7 @@ import {
 } from "~/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/components/ui/table";
 import { Badge } from "~/components/ui/badge";
-import type { EmployeeFamilyDTO } from "~/server/types/karyawan";
+import type { EmployeeFamilyDTO } from "~/server/types/pt-pks/karyawan";
 
 interface FamilyDetailSheetProps {
   employeeId: string | null;

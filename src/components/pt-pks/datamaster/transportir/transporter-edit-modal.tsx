@@ -54,9 +54,7 @@ const tariffSchema = z.object({
   origin: z.string().min(2, "Origin wajib diisi"),
   destination: z.string().min(2, "Destination wajib diisi"),
   commodity: z.string().min(2, "Komoditas wajib diisi"),
-  unit: z.enum(["TON", "KM", "TRIP"], {
-    errorMap: () => ({ message: "Unit harus TON, KM, atau TRIP" }),
-  }),
+  unit: z.enum(["TON", "KM", "TRIP"]),
   price: z.coerce.number().positive("Harga harus lebih dari 0"),
   includeToll: z.boolean().default(false),
   includeUnload: z.boolean().default(false),
@@ -76,9 +74,7 @@ const contractSchema = z.object({
 
 // Main form schema
 const transporterEditSchema = z.object({
-  type: z.enum(["PERUSAHAAN", "PERORANGAN"], {
-    errorMap: () => ({ message: "Tipe transportir wajib dipilih" }),
-  }),
+  type: z.enum(["PERUSAHAAN", "PERORANGAN"]),
   legalName: z.string().min(3, "Nama legal minimal 3 karakter"),
   tradeName: z.string().optional(),
   npwp: z
@@ -86,9 +82,7 @@ const transporterEditSchema = z.object({
     .regex(/^\d{15}$/, "NPWP harus 15 digit angka")
     .optional()
     .or(z.literal("")),
-  pkpStatus: z.enum(["NON_PKP", "PKP_11", "PKP_1_1"], {
-    errorMap: () => ({ message: "Status PKP wajib dipilih" }),
-  }),
+  pkpStatus: z.enum(["NON_PKP", "PKP_11", "PKP_1_1"]),
   addressLine: z.string().min(5, "Alamat minimal 5 karakter").optional(),
   city: z.string().min(2, "Kota minimal 2 karakter").optional(),
   province: z.string().min(2, "Provinsi minimal 2 karakter").optional(),

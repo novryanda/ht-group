@@ -8,7 +8,7 @@ import {
   type SupplierListResponse,
   type SupplierStatsResponse,
   type UniqueCheckResponse
-} from "~/server/types/supplier";
+} from "~/server/types/pt-pks/supplier";
 
 const API_BASE_URL = "/api/suppliers";
 

@@ -3,6 +3,7 @@
 /**
  * PB Upload Card Component
  * Drag & drop Excel file upload
+ * Uses exceljs for Excel file processing
  */
 
 import { useState, useCallback } from "react";

@@ -31,7 +31,7 @@ import { Loader2 } from "lucide-react";
 const employeeFormSchema = z.object({
   // Required fields
   nama: z.string().min(1, "Nama wajib diisi").max(100),
-  jenis_kelamin: z.enum(["L", "P"], { required_error: "Jenis kelamin wajib dipilih" }),
+  jenis_kelamin: z.enum(["L", "P"]),
   no_nik_ktp: z.string().min(1, "NIK/KTP wajib diisi").max(20),
 
   // Optional fields
@@ -88,7 +88,7 @@ export function EmployeeFormModal({ open, onOpenChange, onSuccess, employeeId }:
   const [isLoadingData, setIsLoadingData] = useState(false);
   const isEditMode = !!employeeId;
 
-  const form = useForm<EmployeeFormData>({
+  const form = useForm({
     resolver: zodResolver(employeeFormSchema),
     defaultValues: {
       nama: "",

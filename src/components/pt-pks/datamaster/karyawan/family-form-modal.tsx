@@ -30,9 +30,7 @@ interface FamilyFormModalProps {
  */
 const familyFormSchema = z.object({
   nama: z.string().min(1, "Nama wajib diisi"),
-  hubungan: z.nativeEnum(FamilyRelation, {
-    errorMap: () => ({ message: "Hubungan harus dipilih" }),
-  }),
+  hubungan: z.nativeEnum(FamilyRelation),
   jenis_kelamin: z.string().regex(/^[LP]$/, "Jenis kelamin harus L atau P").optional().nullable(),
   tanggal_lahir: z.string().optional().nullable(),
   umur: z.coerce.number().int().min(0).max(150).optional().nullable(),
@@ -48,7 +46,7 @@ export function FamilyFormModal({ employeeId, isOpen, onClose, onSuccess }: Fami
   const [employeeName, setEmployeeName] = useState<string>("");
   const { toast } = useToast();
 
-  const form = useForm<FamilyFormData>({
+  const form = useForm({
     resolver: zodResolver(familyFormSchema),
     defaultValues: {
       nama: "",
@@ -232,7 +230,7 @@ export function FamilyFormModal({ employeeId, isOpen, onClose, onSuccess }: Fami
                       type="number"
                       placeholder="Umur"
                       {...field}
-                      value={field.value || ""}
+                      value={typeof field.value === 'number' ? field.value : ""}
                     />
                   </FormControl>
                   <FormMessage />

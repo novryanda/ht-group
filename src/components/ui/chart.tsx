@@ -2,8 +2,12 @@
 
 import * as React from "react"
 import * as RechartsPrimitive from "recharts"
+import type { TooltipProps, LegendProps } from "recharts"
 
 import { cn } from "~/lib/utils"
+
+type ValueType = number | string | Array<number | string>;
+type NameType = string | number;
 
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const
@@ -104,7 +108,7 @@ ${colorConfig
 
 const ChartTooltip = RechartsPrimitive.Tooltip
 
-function ChartTooltipContent({
+function ChartTooltipContent<TValue extends ValueType, TName extends NameType>({
   active,
   payload,
   className,
@@ -118,13 +122,19 @@ function ChartTooltipContent({
   color,
   nameKey,
   labelKey,
-}: React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
-  React.ComponentProps<"div"> & {
-    hideLabel?: boolean
-    hideIndicator?: boolean
-    indicator?: "line" | "dot" | "dashed"
-    nameKey?: string
-    labelKey?: string
+}: React.ComponentProps<"div"> & {
+    active?: boolean;
+    payload?: Array<any>;
+    label?: TName;
+    labelFormatter?: (value: any, payload: Array<any>) => React.ReactNode;
+    formatter?: (value: TValue, name: TName, props: any, index: number, payload: any) => React.ReactNode;
+    hideLabel?: boolean;
+    hideIndicator?: boolean;
+    indicator?: "line" | "dot" | "dashed";
+    color?: string;
+    nameKey?: string;
+    labelKey?: string;
+    labelClassName?: string;
   }) {
   const { config } = useChart()
 
@@ -256,14 +266,21 @@ function ChartLegendContent({
   payload,
   verticalAlign = "bottom",
   nameKey,
-}: React.ComponentProps<"div"> &
-  Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
-    hideIcon?: boolean
-    nameKey?: string
+}: React.ComponentProps<"div"> & {
+    payload?: unknown[];
+    verticalAlign?: "top" | "bottom";
+    hideIcon?: boolean;
+    nameKey?: string;
   }) {
   const { config } = useChart()
 
-  if (!payload?.length) {
+  const items = (payload ?? []) as Array<{
+    value?: string | number;
+    dataKey?: string | number;
+    color?: string;
+  }>;
+
+  if (!items.length) {
     return null
   }
 
@@ -275,13 +292,13 @@ function ChartLegendContent({
         className
       )}
     >
-      {payload.map((item) => {
+      {items.map((item, idx) => {
         const key = `${nameKey || item.dataKey || "value"}`
         const itemConfig = getPayloadConfigFromPayload(config, item, key)
 
         return (
           <div
-            key={item.value}
+            key={item.value ?? idx}
             className={cn(
               "[&>svg]:text-muted-foreground flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3"
             )}

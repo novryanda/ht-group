@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { auth } from "~/server/auth";
-import { KaryawanAPI } from "~/server/api/karyawan";
+import { KaryawanAPI } from "~/server/api/pt-pks/karyawan";
 import { normalizeEmptyStrings } from "~/lib/select-utils";
 
 /**
