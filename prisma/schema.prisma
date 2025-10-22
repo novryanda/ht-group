@@ -2,7 +2,14 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  // Ensure Prisma generates the appropriate Query Engine for Vercel's runtime
+  // Add the Vercel Linux runtime target so the native Node-API library is bundled.
+  // "native" keeps local dev behaviour; add other targets if you deploy to other platforms.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  // Use the Node-API library engine (libquery_engine-*.so.node). This is the
+  // recommended engine for serverless deployments on Vercel.
+  engineType = "library"
 }
 
 datasource db {
