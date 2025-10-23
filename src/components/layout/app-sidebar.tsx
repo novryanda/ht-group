@@ -244,6 +244,7 @@ const ptNavigationData: Record<string, PTNavigationData> = {
         icon: Scale,
         items: [
           { title: "Supplier & Timbangan", url: "/dashboard/pt-pks/transaksipks/supplier-timbangan", icon: Scale },
+          { title: "Transaksi Gudang", url: "/dashboard/pt-pks/transaksi-pks/transaksi-gudang", icon: Package },
           { title: "PB Harian", url: "/dashboard/pt-pks/transaksipks/pb-harian", icon: FileText },
           { title: "Permintaan Dana", url: "/dashboard/pt-pks/transaksipks/permintaan-dana", icon: Calculator },
           { title: "Pembayaran Produksi Harian", url: "/dashboard/pt-pks/transaksipks/produksi-harian", icon: Receipt },
