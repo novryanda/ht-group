@@ -542,3 +542,292 @@ model OpeningBalance {
   @@unique([companyId, periodId, accountId])
   @@index([accountId])
 }
+
+// ============================================
+// MATERIAL INVENTORY MODELS - PT PKS
+// ============================================
+
+// Unit (Satuan Barang) Model
+model Unit {
+  id                 String   @id @default(cuid())
+  code               String   @unique
+  name               String
+  isBase             Boolean  @default(false)
+  conversionToBase   Decimal  @db.Decimal(10,4) @default(1.0)
+  description        String?  @db.Text
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relations
+  itemsAsBase        Item[]   @relation("ItemBaseUnit")
+  itemsAsIssue       Item[]   @relation("ItemIssueUnit")
+  goodsReceiptLines  GoodsReceiptLine[]
+  goodsIssueLines    GoodsIssueLine[]
+  itemRequestLines   ItemRequestLine[]
+
+  @@index([name])
+}
+
+// Category (Kategori Barang) Model
+model Category {
+  id          String     @id @default(cuid())
+  code        String     @unique
+  name        String
+  description String?    @db.Text
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  itemTypes   ItemType[]
+  items       Item[]
+
+  @@index([name])
+}
+
+// ItemType (Jenis Barang) Model
+model ItemType {
+  id          String   @id @default(cuid())
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  code        String
+  name        String
+  description String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  items       Item[]
+
+  @@unique([categoryId, code])
+  @@index([categoryId])
+  @@index([name])
+}
+
+// Warehouse (Gudang) Model
+model Warehouse {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  address     String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  bins            Bin[]
+  stockBalances   StockBalance[]
+  stockLedgers    StockLedger[]
+  goodsReceipts   GoodsReceipt[]
+  goodsIssues     GoodsIssue[]
+
+  @@index([name])
+}
+
+// Bin (Lokasi Rak/Bin di Gudang) Model
+model Bin {
+  id          String    @id @default(cuid())
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  code        String
+  name        String
+  description String?   @db.Text
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  stockBalances StockBalance[]
+  stockLedgers  StockLedger[]
+
+  @@unique([warehouseId, code])
+  @@index([warehouseId])
+}
+
+// Item (Barang/Material) Model
+model Item {
+  id                  String   @id @default(cuid())
+  sku                 String   @unique
+  name                String
+  description         String?  @db.Text
+  categoryId          String
+  category            Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  itemTypeId          String
+  itemType            ItemType @relation(fields: [itemTypeId], references: [id], onDelete: Restrict)
+  baseUnitId          String
+  baseUnit            Unit     @relation("ItemBaseUnit", fields: [baseUnitId], references: [id], onDelete: Restrict)
+  defaultIssueUnitId  String?
+  defaultIssueUnit    Unit?    @relation("ItemIssueUnit", fields: [defaultIssueUnitId], references: [id], onDelete: Restrict)
+  valuationMethod     String   @default("AVERAGE") // AVERAGE or FIFO
+  minStock            Decimal? @db.Decimal(18,4)
+  maxStock            Decimal? @db.Decimal(18,4)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  stockBalances     StockBalance[]
+  stockLedgers      StockLedger[]
+  goodsReceiptLines GoodsReceiptLine[]
+  goodsIssueLines   GoodsIssueLine[]
+  itemRequestLines  ItemRequestLine[]
+
+  @@index([name])
+  @@index([sku])
+  @@index([categoryId])
+  @@index([itemTypeId])
+}
+
+// StockBalance (Saldo Stok) Model
+model StockBalance {
+  id          String    @id @default(cuid())
+  itemId      String
+  item        Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  binId       String?
+  bin         Bin?      @relation(fields: [binId], references: [id], onDelete: SetNull)
+  qtyOnHand   Decimal   @db.Decimal(18,4) @default(0)
+  avgCost     Decimal   @db.Decimal(18,4) @default(0)
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([itemId, warehouseId, binId])
+  @@index([itemId])
+  @@index([warehouseId])
+}
+
+// StockLedger (Kartu Stok) Model
+model StockLedger {
+  id            String    @id @default(cuid())
+  ts            DateTime  @default(now())
+  itemId        String
+  item          Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  warehouseId   String
+  warehouse     Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  binId         String?
+  bin           Bin?      @relation(fields: [binId], references: [id], onDelete: SetNull)
+  referenceType String    // IN|OUT|ADJ
+  referenceId   String
+  qtyDelta      Decimal   @db.Decimal(18,4) // + for IN, - for OUT (in base unit)
+  unitCost      Decimal?  @db.Decimal(18,4) // for average valuation updates
+  note          String?   @db.Text
+  createdById   String
+  createdAt     DateTime  @default(now())
+
+  @@index([itemId])
+  @@index([warehouseId])
+  @@index([referenceType])
+  @@index([ts])
+}
+
+// GoodsReceipt (Barang Masuk) Model
+model GoodsReceipt {
+  id          String    @id @default(cuid())
+  docNumber   String    @unique
+  date        DateTime
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  sourceType  String    // PURCHASE|RETURN|PRODUCTION|OTHER
+  sourceRef   String?
+  note        String?   @db.Text
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  lines       GoodsReceiptLine[]
+
+  @@index([date])
+  @@index([warehouseId])
+}
+
+// GoodsReceiptLine (Detail Barang Masuk) Model
+model GoodsReceiptLine {
+  id          String       @id @default(cuid())
+  receiptId   String
+  receipt     GoodsReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  itemId      String
+  item        Item         @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  unitId      String
+  unit        Unit         @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  qty         Decimal      @db.Decimal(18,4)
+  unitCost    Decimal?     @db.Decimal(18,4)
+  note        String?      @db.Text
+
+  @@index([receiptId])
+  @@index([itemId])
+}
+
+// GoodsIssue (Barang Keluar) Model
+model GoodsIssue {
+  id          String    @id @default(cuid())
+  docNumber   String    @unique
+  date        DateTime
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  purpose     String    // ISSUE|LOAN|PROD|SCRAP
+  targetDept  String?
+  note        String?   @db.Text
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  lines       GoodsIssueLine[]
+
+  @@index([date])
+  @@index([warehouseId])
+}
+
+// GoodsIssueLine (Detail Barang Keluar) Model
+model GoodsIssueLine {
+  id        String     @id @default(cuid())
+  issueId   String
+  issue     GoodsIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  itemId    String
+  item      Item       @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  unitId    String
+  unit      Unit       @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  qty       Decimal    @db.Decimal(18,4)
+  note      String?    @db.Text
+
+  @@index([issueId])
+  @@index([itemId])
+}
+
+// ItemRequest (Pengajuan Barang) Model
+model ItemRequest {
+  id             String   @id @default(cuid())
+  reqNumber      String   @unique
+  date           DateTime
+  requestDept    String
+  reason         String?  @db.Text
+  status         String   @default("DRAFT") // DRAFT|PENDING|APPROVED|REJECTED|FULFILLED|NEED_FUND
+  relatedFunding String?
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  lines          ItemRequestLine[]
+
+  @@index([date])
+  @@index([status])
+}
+
+// ItemRequestLine (Detail Pengajuan Barang) Model
+model ItemRequestLine {
+  id         String      @id @default(cuid())
+  requestId  String
+  request    ItemRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  itemId     String
+  item       Item        @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  unitId     String
+  unit       Unit        @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  qty        Decimal     @db.Decimal(18,4)
+
+  @@index([requestId])
+  @@index([itemId])
+}
