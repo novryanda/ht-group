@@ -1,4 +1,4 @@
-﻿import { TransporterList } from "~/components/pt-pks/datamaster-pks/transportir";
+﻿import { TransporterList } from "~/components/dashboard/pt-pks/datamaster-pks/transportir";
 
 export default function PKSTransportirPage() {
   return (

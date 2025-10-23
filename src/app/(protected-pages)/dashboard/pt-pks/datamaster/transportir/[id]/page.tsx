@@ -1,4 +1,4 @@
-import { TransporterDetail } from "~/components/pt-pks/datamaster-pks/transportir";
+import { TransporterDetail } from "~/components/dashboard/pt-pks/datamaster-pks/transportir";
 
 interface TransporterDetailPageProps {
   params: Promise<{

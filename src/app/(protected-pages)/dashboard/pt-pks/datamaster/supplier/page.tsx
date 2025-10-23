@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { SupplierList } from "~/components/pt-pks/datamaster-pks/supplier/supplier-list";
-import { SupplierForm } from "~/components/pt-pks/datamaster-pks/supplier/supplier-form";
+import { SupplierList } from "~/components/dashboard/pt-pks/datamaster-pks/supplier/supplier-list";
+import { SupplierForm } from "~/components/dashboard/pt-pks/datamaster-pks/supplier/supplier-form";
 
 export default function SupplierDataMasterPage() {
   const [activeTab, setActiveTab] = useState("list");

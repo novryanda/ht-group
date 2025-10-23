@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { EmployeeList } from "~/components/pt-pks/datamaster-pks/karyawan/employee-list";
+import { EmployeeList } from "~/components/dashboard/pt-pks/datamaster-pks/karyawan/employee-list";
 
 export default function PKSKaryawanPage() {
   return (

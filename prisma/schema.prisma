@@ -86,6 +86,51 @@ enum RecordStatus {
   NONAKTIF
 }
 
+enum AccountClass {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  COGS
+  EXPENSE
+  OTHER_INCOME
+  OTHER_EXPENSE
+}
+
+enum NormalSide {
+  DEBIT
+  CREDIT
+}
+
+enum TaxCode {
+  NON_TAX
+  PPN_MASUKAN
+  PPN_KELUARAN
+  PPH21
+  PPH22
+  PPH23
+}
+
+enum SystemAccountKey {
+  TBS_PURCHASE
+  INVENTORY_TBS
+  AP_SUPPLIER_TBS
+  UNLOADING_EXPENSE_SPTI
+  UNLOADING_EXPENSE_SPLO
+  SALES_CPO
+  SALES_KERNEL
+  INVENTORY_CPO
+  INVENTORY_KERNEL
+  COGS_CPO
+  COGS_KERNEL
+  CASH_DEFAULT
+  BANK_DEFAULT
+  PPN_KELUARAN
+  PPN_MASUKAN
+  PPH22_DEFAULT
+  PPH23_DEFAULT
+}
+
 // Company Model
 model Company {
   id        String     @id @default(cuid())
@@ -94,6 +139,10 @@ model Company {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   employees Employee[]
+  accounts  Account[]
+  systemAccountMaps SystemAccountMap[]
+  fiscalPeriods FiscalPeriod[]
+  openingBalances OpeningBalance[]
 }
 
 // Employee Model (maps to karyawan table)
@@ -399,4 +448,97 @@ model TransportContract {
 
   @@index([transporterId])
   @@index([contractNo])
+}
+
+// Account Model - Chart of Accounts (Daftar Akun)
+model Account {
+  id            String        @id @default(cuid())
+  companyId     String
+  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  code          String
+  name          String
+  class         AccountClass
+  normalSide    NormalSide
+  isPosting     Boolean       @default(true)
+  isCashBank    Boolean       @default(false)
+  taxCode       TaxCode       @default(NON_TAX)
+
+  currency      String?       @db.VarChar(10)
+  description   String?       @db.VarChar(300)
+  status        RecordStatus  @default(AKTIF)
+
+  parentId      String?
+  parent        Account?      @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children      Account[]     @relation("AccountHierarchy")
+
+  systemAccountMaps SystemAccountMap[]
+  openingBalances   OpeningBalance[]
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([companyId, code])
+  @@index([companyId, class])
+  @@index([parentId])
+}
+
+// SystemAccountMap Model - Mapping akun untuk transaksi otomatis
+model SystemAccountMap {
+  id         String            @id @default(cuid())
+  companyId  String
+  company    Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  key        SystemAccountKey
+  accountId  String
+  account    Account           @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@unique([companyId, key])
+  @@index([accountId])
+}
+
+// FiscalPeriod Model - Periode fiskal per bulan
+model FiscalPeriod {
+  id         String    @id @default(cuid())
+  companyId  String
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  year       Int
+  month      Int
+  startDate  DateTime
+  endDate    DateTime
+  isClosed   Boolean   @default(false)
+
+  openingBalances OpeningBalance[]
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([companyId, year, month])
+  @@index([companyId, isClosed])
+}
+
+// OpeningBalance Model - Saldo awal akun per periode
+model OpeningBalance {
+  id          String      @id @default(cuid())
+  companyId   String
+  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  periodId    String
+  period      FiscalPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  accountId   String
+  account     Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  debit       Decimal     @db.Decimal(18,2) @default(0)
+  credit      Decimal     @db.Decimal(18,2) @default(0)
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([companyId, periodId, accountId])
+  @@index([accountId])
 }

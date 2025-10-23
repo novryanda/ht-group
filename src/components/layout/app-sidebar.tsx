@@ -56,6 +56,7 @@ import {
   ClipboardMinus,
   Truck,
   Scale,
+  Calendar,
 } from "lucide-react";
 
 // Define types for navigation
@@ -70,6 +71,7 @@ type PTNavigationData = {
   code: string;
   units: {
     title: string;
+    icon?: React.ComponentType<any>;
     items: {
       title: string;
       url: string;
@@ -219,16 +221,27 @@ const ptNavigationData: Record<string, PTNavigationData> = {
     units: [
       {
         title: "Data Master",
+        icon: Package,
         items: [
           { title: "Supplier", url: "/dashboard/pt-pks/datamaster/supplier", icon: UserPlus },
           { title: "Buyer", url: "/dashboard/pt-pks/datamaster/buyer", icon: Users },
           { title: "Transportir", url: "/dashboard/pt-pks/datamaster/transportir", icon: Truck },
           { title: "Material & Inventory", url: "/dashboard/pt-pks/datamaster/material-inventory", icon: Package },
           { title: "Karyawan", url: "/dashboard/pt-pks/datamaster/karyawan", icon: User },
+          { title: "Daftar Akun", url: "/dashboard/pt-pks/datamaster/daftar-akun", icon: ClipboardMinus },
+        ],
+      },
+      {
+        title: "Finance",
+        icon: Calculator,
+        items: [
+          { title: "Periode Fiskal", url: "/dashboard/pt-pks/finance/periode-fiskal", icon: Calendar },
+          { title: "Saldo Awal Akun", url: "/dashboard/pt-pks/finance/saldo-awal-akun", icon: Receipt },
         ],
       },
       {
         title: "Transaksi PKS",
+        icon: Scale,
         items: [
           { title: "Supplier & Timbangan", url: "/dashboard/pt-pks/transaksipks/supplier-timbangan", icon: Scale },
           { title: "PB Harian", url: "/dashboard/pt-pks/transaksipks/pb-harian", icon: FileText },
@@ -238,6 +251,7 @@ const ptNavigationData: Record<string, PTNavigationData> = {
       },
       {
         title: "Laporan",
+        icon: BarChart3,
         items: [
           { title: "Laporan Produksi", url: "/dashboard/pt-pks/transaksipks/supplier-timbangan", icon: Scale },
         ],
@@ -248,204 +262,6 @@ const ptNavigationData: Record<string, PTNavigationData> = {
   },
 };
 
-const navigationItems = [
-  {
-    title: "HT-Group Dashboard",
-    url: "/dashboard",
-    icon: Home,
-  },
-  {
-    title: "PT NILO",
-    icon: Building2,
-    items: [
-      {
-        title: "Dashboard",
-        url: "/dashboard/pt-nilo/dashboard",
-        icon: Home,
-      },
-      {
-        title: "HVAC Rittal",
-        items: [
-          { title: "Work Orders", url: "/dashboard/pt-nilo/hvac-rittal/work-orders" },
-          { title: "Checklist & PM", url: "/dashboard/pt-nilo/hvac-rittal/pm" },
-          { title: "Parts & Material", url: "/dashboard/pt-nilo/hvac-rittal/parts" },
-          { title: "Laporan", url: "/dashboard/pt-nilo/hvac-rittal/report" },
-        ],
-      },
-      {
-        title: "HVAC Split",
-        items: [
-          { title: "Work Orders", url: "/dashboard/pt-nilo/hvac-split/work-orders" },
-          { title: "PM & Outstanding", url: "/dashboard/pt-nilo/hvac-split/pm" },
-          { title: "Parts & Material", url: "/dashboard/pt-nilo/hvac-split/parts" },
-          { title: "Laporan", url: "/dashboard/pt-nilo/hvac-split/report" },
-        ],
-      },
-      {
-        title: "Manpower Fabrikasi",
-        items: [
-          { title: "Projects / Job Orders", url: "/dashboard/pt-nilo/fabrikasi/jobs" },
-          { title: "Timesheet", url: "/dashboard/pt-nilo/fabrikasi/timesheet" },
-          { title: "Material Issue", url: "/dashboard/pt-nilo/fabrikasi/materials" },
-          { title: "Laporan", url: "/dashboard/pt-nilo/fabrikasi/report" },
-        ],
-      },
-      {
-        title: "Manpower Efluen",
-        items: [
-          { title: "WO / Projects", url: "/dashboard/pt-nilo/efluen/jobs" },
-          { title: "Timesheet", url: "/dashboard/pt-nilo/efluen/timesheet" },
-          { title: "Laporan", url: "/dashboard/pt-nilo/efluen/report" },
-        ],
-      },
-      {
-        title: "HR & Payroll",
-        url: "/dashboard/pt-nilo/hr",
-        icon: Users,
-      },
-      {
-        title: "Finance",
-        url: "/dashboard/pt-nilo/finance",
-        icon: Calculator,
-      },
-      {
-        title: "Master Data",
-        url: "/dashboard/pt-nilo/master",
-        icon: Settings,
-      },
-    ],
-  },
-  {
-    title: "PT ZTA",
-    icon: Building2,
-    items: [
-      {
-        title: "Dashboard",
-        url: "/dashboard/pt-zta/dashboard",
-        icon: Home,
-      },
-      {
-        title: "HVAC Rittal",
-        items: [
-          { title: "Work Orders", url: "/dashboard/pt-zta/hvac-rittal/work-orders" },
-        ],
-      },
-      {
-        title: "HVAC Split",
-        items: [
-          { title: "Work Orders", url: "/dashboard/pt-zta/hvac-split/work-orders" },
-        ],
-      },
-      {
-        title: "HR & Payroll",
-        url: "/dashboard/pt-zta/hr",
-        icon: Users,
-      },
-      {
-        title: "Finance",
-        url: "/dashboard/pt-zta/finance",
-        icon: Calculator,
-      },
-    ],
-  },
-  {
-    title: "PT TAM",
-    icon: Building2,
-    items: [
-      {
-        title: "Dashboard",
-        url: "/dashboard/pt-tam/dashboard",
-        icon: Home,
-      },
-      {
-        title: "Manpower Fabrikasi",
-        items: [
-          { title: "Projects / Job Orders", url: "/dashboard/pt-tam/fabrikasi/jobs" },
-        ],
-      },
-      {
-        title: "HR & Payroll",
-        url: "/dashboard/pt-tam/hr",
-        icon: Users,
-      },
-      {
-        title: "Finance",
-        url: "/dashboard/pt-tam/finance",
-        icon: Calculator,
-      },
-    ],
-  },
-  {
-    title: "PT HTK",
-    icon: Building2,
-    items: [
-      {
-        title: "Dashboard",
-        url: "/dashboard/pt-htk/dashboard",
-        icon: Home,
-      },
-      {
-        title: "Cutting Grass",
-        items: [
-          { title: "Job Orders", url: "/dashboard/pt-htk/cutting-grass/jobs" },
-        ],
-      },
-      {
-        title: "Heavy Equipment",
-        items: [
-          { title: "Job Orders", url: "/dashboard/pt-htk/heavy-equipment/jobs" },
-        ],
-      },
-      {
-        title: "Hauling Container",
-        items: [
-          { title: "Job Orders", url: "/dashboard/pt-htk/hauling-container/jobs" },
-        ],
-      },
-      {
-        title: "HR & Payroll",
-        url: "/dashboard/pt-htk/hr",
-        icon: Users,
-      },
-      {
-        title: "Finance",
-        url: "/dashboard/pt-htk/finance",
-        icon: Calculator,
-      },
-    ],
-  },
-  {
-    title: "PT PKS",
-    icon: Building2,
-    items: [
-      {
-        title: "Dashboard",
-        url: "/dashboard/pt-pks/dashboard",
-        icon: Home,
-      },
-      {
-        title: "Data Master",
-        items: [
-          { title: "Supplier", url: "/dashboard/pt-pks/datamaster/supplier" },
-          { title: "Buyer", url: "/dashboard/pt-pks/datamaster/buyer" },
-          { title: "Transportir", url: "/dashboard/pt-pks/datamaster/transportir" },
-          { title: "Material & Inventory", url: "/dashboard/pt-pks/datamaster/material-inventory" },
-          { title: "Karyawan", url: "/dashboard/pt-pks/datamaster/karyawan" },
-        ],
-      },
-      {
-        title: "Transaksi PKS",
-        icon: Scale,
-        items: [
-          { title: "Supplier & Timbangan", url: "/dashboard/pt-pks/transaksipks/supplier-timbangan" },
-          { title: "PB Harian", url: "/dashboard/pt-pks/transaksipks/pb-harian" },
-          { title: "Permintaan Dana", url: "/dashboard/pt-pks/transaksipks/permintaan-dana" },
-          { title: "Pembayaran Produksi Harian", url: "/dashboard/pt-pks/transaksipks/produksi-harian" },
-        ],
-      },
-    ],
-  },
-];
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -494,6 +310,7 @@ export function AppSidebar() {
             },
             ...ptData.units.map(unit => ({
               title: unit.title,
+              icon: unit.icon,
               items: unit.items,
             })),
             ...ptData.common,
@@ -532,7 +349,7 @@ export function AppSidebar() {
       },
       ...ptData.units.map(unit => ({
         title: unit.title,
-        icon: Wrench,
+        icon: unit.icon,
         items: unit.items,
       })),
       ...ptData.common,
@@ -540,31 +357,6 @@ export function AppSidebar() {
   };
 
   // Filter navigation items based on user access
-  const getFilteredNavigationItems = () => {
-    if (!session) return [];
-
-    // If user is group-level (executive/viewer), show all items
-    if (isGroupLevelUser(session)) {
-      return navigationItems;
-    }
-
-    // Get accessible PT companies for the user
-    const accessiblePTs = getAccessiblePTCompanies(session);
-
-    // Filter navigation items to only show accessible PTs
-    const filteredItems = navigationItems.filter(item => {
-      // Always show HT-Group Dashboard
-      if (item.title === "HT-Group Dashboard") {
-        return true;
-      }
-
-      // Check if this is a PT item and if user has access
-      const ptName = item.title;
-      return accessiblePTs.some(pt => pt.name === ptName);
-    });
-
-    return filteredItems;
-  };
 
   const dynamicNavigationItems = getNavigationItems();
 

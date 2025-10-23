@@ -1,4 +1,4 @@
-import { BuyerForm } from "~/components/pt-pks/datamaster-pks/buyer/buyer-form";
+import { BuyerForm } from "~/components/dashboard/pt-pks/datamaster-pks/buyer/buyer-form";
 
 export default function NewBuyerPage() {
   return (

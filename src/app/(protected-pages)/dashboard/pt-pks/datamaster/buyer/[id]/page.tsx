@@ -1,4 +1,4 @@
-import { BuyerDetail } from "~/components/pt-pks/datamaster-pks/buyer/buyer-detail";
+import { BuyerDetail } from "~/components/dashboard/pt-pks/datamaster-pks/buyer/buyer-detail";
 
 interface BuyerDetailPageProps {
   params: Promise<{

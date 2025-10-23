@@ -1,4 +1,4 @@
-import { TransporterForm } from "~/components/pt-pks/datamaster-pks/transportir";
+import { TransporterForm } from "~/components/dashboard/pt-pks/datamaster-pks/transportir";
 
 export default function NewTransporterPage() {
   return (
