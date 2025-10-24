@@ -57,6 +57,7 @@ import {
   Truck,
   Scale,
   Calendar,
+  ArrowLeftRightIcon,
 } from "lucide-react";
 
 // Define types for navigation
@@ -240,10 +241,17 @@ const ptNavigationData: Record<string, PTNavigationData> = {
         ],
       },
       {
-        title: "Transaksi PKS",
+        title: "Supplier & Timbangan",
         icon: Scale,
         items: [
-          { title: "Supplier & Timbangan", url: "/dashboard/pt-pks/transaksipks/supplier-timbangan", icon: Scale },
+          { title: "Supplier", url: "/dashboard/pt-pks/supplier-timbangan/supplier", icon: UserPlus },
+          { title: "Timbangan", url: "/dashboard/pt-pks/supplier-timbangan/timbangan", icon: Truck },
+        ] 
+      },
+      {
+        title: "Transaksi PKS",
+        icon: ArrowLeftRightIcon,
+        items: [
           { title: "Transaksi Gudang", url: "/dashboard/pt-pks/transaksi-pks/transaksi-gudang", icon: Package },
           { title: "PB Harian", url: "/dashboard/pt-pks/transaksipks/pb-harian", icon: FileText },
           { title: "Permintaan Dana", url: "/dashboard/pt-pks/transaksipks/permintaan-dana", icon: Calculator },
@@ -254,7 +262,8 @@ const ptNavigationData: Record<string, PTNavigationData> = {
         title: "Laporan",
         icon: BarChart3,
         items: [
-          { title: "Laporan Produksi", url: "/dashboard/pt-pks/transaksipks/supplier-timbangan", icon: Scale },
+          { title: "Laporan Mutu Produksi", url: "/dashboard/pt-pks/laporan/laporan-mutu-produksi", icon: FileText },
+          { title: "Laporan Produksi", url: "/dashboard/pt-pks/laporan/laporan-produksi", icon: Scale },
         ],
       },
     ],

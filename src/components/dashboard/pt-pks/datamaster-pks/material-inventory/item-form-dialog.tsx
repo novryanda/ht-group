@@ -47,6 +47,13 @@ const itemFormSchema = z.object({
   minStock: z.number().nonnegative("Stok minimal tidak boleh negatif"),
   maxStock: z.number().nonnegative("Stok maksimal tidak boleh negatif"),
   isActive: z.boolean(),
+  // Initial Stock Fields
+  initialStock: z.object({
+    warehouseId: z.string().optional(),
+    binId: z.string().optional(),
+    quantity: z.number().nonnegative("Quantity tidak boleh negatif"),
+    unitCost: z.number().nonnegative("Harga satuan tidak boleh negatif"),
+  }).optional(),
 }).refine(
   (data) => {
     if (data.minStock && data.maxStock) {
@@ -57,6 +64,18 @@ const itemFormSchema = z.object({
   {
     message: "Stok maksimal harus lebih besar atau sama dengan stok minimal",
     path: ["maxStock"],
+  }
+).refine(
+  (data) => {
+    // Jika quantity diisi, warehouse harus dipilih
+    if (data.initialStock?.quantity && data.initialStock.quantity > 0 && !data.initialStock.warehouseId) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "Gudang harus dipilih jika ada quantity stok awal",
+    path: ["initialStock.warehouseId"],
   }
 );
 
@@ -78,6 +97,7 @@ export function ItemFormDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingSKU, setIsGeneratingSKU] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedWarehouse, setSelectedWarehouse] = useState<string>("");
 
   const form = useForm<ItemFormValues>({
     resolver: zodResolver(itemFormSchema),
@@ -93,6 +113,12 @@ export function ItemFormDialog({
       minStock: 0,
       maxStock: 0,
       isActive: true,
+      initialStock: {
+        warehouseId: "",
+        binId: "",
+        quantity: 0,
+        unitCost: 0,
+      },
     },
   });
 
@@ -132,6 +158,27 @@ export function ItemFormDialog({
     },
   });
 
+  // Fetch active warehouses
+  const { data: warehousesData } = useQuery({
+    queryKey: ["warehouses-active"],
+    queryFn: async () => {
+      const res = await fetch("/api/pt-pks/material-inventory/warehouses/active");
+      if (!res.ok) throw new Error("Failed to fetch warehouses");
+      return res.json();
+    },
+  });
+
+  // Fetch bins for selected warehouse
+  const { data: binsData } = useQuery({
+    queryKey: ["bins-active", selectedWarehouse],
+    queryFn: async () => {
+      const res = await fetch(`/api/pt-pks/material-inventory/bins?warehouseId=${selectedWarehouse}`);
+      if (!res.ok) throw new Error("Failed to fetch bins");
+      return res.json();
+    },
+    enabled: !!selectedWarehouse,
+  });
+
   // Reset form when dialog opens/closes or item changes
   useEffect(() => {
     if (open) {
@@ -149,6 +196,12 @@ export function ItemFormDialog({
           minStock: item.minStock || 0,
           maxStock: item.maxStock || 0,
           isActive: item.isActive,
+          initialStock: {
+            warehouseId: "",
+            binId: "",
+            quantity: 0,
+            unitCost: 0,
+          },
         });
         setSelectedCategory(item.categoryId);
       } else {
@@ -165,13 +218,20 @@ export function ItemFormDialog({
           minStock: 0,
           maxStock: 0,
           isActive: true,
+          initialStock: {
+            warehouseId: "",
+            binId: "",
+            quantity: 0,
+            unitCost: 0,
+          },
         });
         setSelectedCategory("");
+        setSelectedWarehouse("");
       }
     }
   }, [open, item, form]);
 
-  // Watch category changes
+  // Watch category and warehouse changes
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
       if (name === "categoryId") {
@@ -180,6 +240,11 @@ export function ItemFormDialog({
         if (!item || value.categoryId !== item.categoryId) {
           form.setValue("itemTypeId", "");
         }
+      }
+      if (name === "initialStock.warehouseId") {
+        setSelectedWarehouse(value.initialStock?.warehouseId || "");
+        // Reset bin when warehouse changes
+        form.setValue("initialStock.binId", "");
       }
     });
     return () => subscription.unsubscribe();
@@ -227,10 +292,32 @@ export function ItemFormDialog({
         ? `/api/pt-pks/material-inventory/items/${item.id}`
         : "/api/pt-pks/material-inventory/items";
 
+      // Prepare payload
+      const payload = { ...values };
+      
+      // For create mode, handle initial stock
+      if (!item) {
+        // Only include initialStock if warehouse is selected and quantity > 0
+        if (values.initialStock?.warehouseId && values.initialStock.quantity > 0) {
+          payload.initialStock = {
+            warehouseId: values.initialStock.warehouseId,
+            binId: values.initialStock.binId || undefined,
+            quantity: values.initialStock.quantity,
+            unitCost: values.initialStock.unitCost,
+          };
+        } else {
+          // Remove initialStock if not needed
+          delete payload.initialStock;
+        }
+      } else {
+        // For edit mode, don't send initialStock
+        delete payload.initialStock;
+      }
+
       const res = await fetch(url, {
         method: item ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -238,8 +325,20 @@ export function ItemFormDialog({
         throw new Error(error.error || "Failed to save item");
       }
 
-      toast.success(item ? "Barang berhasil diupdate" : "Barang berhasil ditambahkan");
-      onSuccess();
+      const result = await res.json();
+      
+      if (result.success) {
+        toast.success(
+          item 
+            ? "Barang berhasil diupdate" 
+            : payload.initialStock 
+              ? "Barang berhasil ditambahkan dengan stok awal" 
+              : "Barang berhasil ditambahkan"
+        );
+        onSuccess();
+      } else {
+        throw new Error(result.error || "Failed to save item");
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Gagal menyimpan barang");
     } finally {
@@ -250,6 +349,8 @@ export function ItemFormDialog({
   const categories = categoriesData?.data?.data || [];
   const itemTypes = itemTypesData?.data?.data || [];
   const units = unitsData?.data?.data || [];
+  const warehouses = warehousesData?.data || [];
+  const bins = binsData?.data || [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -529,6 +630,135 @@ export function ItemFormDialog({
                 </FormItem>
               )}
             />
+
+            {/* Initial Stock Section - Only for Create Mode */}
+            {!item && (
+              <div className="space-y-4 rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <h3 className="text-base font-semibold">Stok Awal (Opsional)</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Atur stok awal barang di gudang tertentu
+                  </p>
+                </div>
+
+                {/* Warehouse Selection */}
+                <FormField
+                  control={form.control}
+                  name="initialStock.warehouseId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gudang</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Pilih gudang untuk stok awal" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {warehouses.map((warehouse: any) => (
+                            <SelectItem key={warehouse.id} value={warehouse.id}>
+                              {warehouse.name} ({warehouse.code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Bin Selection (Optional) */}
+                <FormField
+                  control={form.control}
+                  name="initialStock.binId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bin/Lokasi (Opsional)</FormLabel>
+                      <Select 
+                        onValueChange={(value) => field.onChange(value || undefined)} 
+                        value={field.value || undefined}
+                        disabled={!selectedWarehouse}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={selectedWarehouse ? "Pilih bin (opsional)" : "Pilih gudang dahulu"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {bins.map((bin: any) => (
+                            <SelectItem key={bin.id} value={bin.id}>
+                              {bin.name} ({bin.code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Kosongkan jika tidak menggunakan sistem bin
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Quantity and Unit Cost */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="initialStock.quantity"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Quantity Stok Awal</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            min="0" 
+                            step="0.01"
+                            placeholder="0"
+                            value={field.value}
+                            onChange={(e) => field.onChange(e.target.value === "" ? 0 : parseFloat(e.target.value))}
+                            onBlur={field.onBlur}
+                            name={field.name}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Dalam satuan dasar barang
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="initialStock.unitCost"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Harga Satuan</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            min="0" 
+                            step="0.01"
+                            placeholder="0"
+                            value={field.value}
+                            onChange={(e) => field.onChange(e.target.value === "" ? 0 : parseFloat(e.target.value))}
+                            onBlur={field.onBlur}
+                            name={field.name}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Harga per satuan dasar (Rp)
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="flex justify-end gap-2 pt-4">

@@ -9,6 +9,7 @@ import { categoryRepo } from "~/server/repositories/pt-pks/category.repo";
 import { itemTypeRepo } from "~/server/repositories/pt-pks/item-type.repo";
 import { unitRepo } from "~/server/repositories/pt-pks/unit.repo";
 import { mapItemToDTO } from "~/server/mappers/pt-pks/material-inventory.mapper";
+import { StockService } from "~/server/services/pt-pks/stock.service";
 import {
   createItemSchema,
   updateItemSchema,
@@ -21,9 +22,11 @@ import type {
 
 export class ItemService {
   private itemRepo: ItemRepo;
+  private stockService: StockService;
 
   constructor() {
     this.itemRepo = new ItemRepo();
+    this.stockService = new StockService();
   }
 
   /**
@@ -74,9 +77,9 @@ export class ItemService {
   }
 
   /**
-   * Create new item with validations
+   * Create new item with validations and optional initial stock
    */
-  async createItem(data: unknown): Promise<{
+  async createItem(data: unknown, userId?: string): Promise<{
     success: boolean;
     data?: ItemDTO;
     error?: string;
@@ -175,6 +178,22 @@ export class ItemService {
       }
 
       const item = await this.itemRepo.create(itemData);
+      
+      // Add initial stock if provided
+      if (validatedData.initialStock && userId) {
+        try {
+          await this.stockService.addInitialStock(
+            item.id,
+            validatedData.initialStock,
+            userId
+          );
+        } catch (stockError) {
+          console.error("❌ Error adding initial stock:", stockError);
+          // Note: Item already created, but initial stock failed
+          // You might want to rollback item creation or handle differently
+        }
+      }
+
       const itemDTO = mapItemToDTO(item);
 
       return {

@@ -84,6 +84,31 @@ export const authConfig: NextAuthConfig = {
       },
     }),
   ],
+  callbacks: {
+    session({ session, token }) {
+      if (token.sub && session.user) {
+        session.user.id = token.sub;
+      }
+      if (token.role && session.user) {
+        session.user.role = token.role as string;
+      }
+      if (token.companyCode && session.user) {
+        session.user.companyCode = token.companyCode as string;
+      }
+      if (token.employeeId && session.user) {
+        session.user.employeeId = token.employeeId as string;
+      }
+      return session;
+    },
+    jwt({ token, user }) {
+      if (user) {
+        token.role = user.role;
+        token.companyCode = user.companyCode;
+        token.employeeId = user.employeeId;
+      }
+      return token;
+    },
+  },
 };
 
 declare module "next-auth" {

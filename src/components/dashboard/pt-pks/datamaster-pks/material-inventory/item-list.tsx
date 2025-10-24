@@ -9,6 +9,8 @@ import {
   Search,
   Filter,
   X,
+  Package,
+  History,
 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -31,6 +33,8 @@ import { Badge } from "~/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { toast } from "sonner";
 import { ItemFormDialog } from "./item-form-dialog";
+import { StockBalanceView } from "./stock-balance-view";
+import { StockLedgerView } from "./stock-ledger-view";
 import type { ItemDTO } from "~/server/types/pt-pks/material-inventory";
 
 export function ItemList() {
@@ -42,6 +46,10 @@ export function ItemList() {
   const [showFilters, setShowFilters] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ItemDTO | null>(null);
+  const [stockViewOpen, setStockViewOpen] = useState(false);
+  const [selectedItemForStock, setSelectedItemForStock] = useState<{ id: string; name: string } | null>(null);
+  const [ledgerViewOpen, setLedgerViewOpen] = useState(false);
+  const [selectedItemForLedger, setSelectedItemForLedger] = useState<{ id: string; name: string } | null>(null);
 
   const limit = 10;
 
@@ -124,6 +132,16 @@ export function ItemList() {
     setFormOpen(false);
     setEditingItem(null);
     refetch();
+  };
+
+  const handleViewStock = (item: ItemDTO) => {
+    setSelectedItemForStock({ id: item.id, name: item.name });
+    setStockViewOpen(true);
+  };
+
+  const handleViewLedger = (item: ItemDTO) => {
+    setSelectedItemForLedger({ id: item.id, name: item.name });
+    setLedgerViewOpen(true);
   };
 
   const clearFilters = () => {
@@ -298,11 +316,28 @@ export function ItemList() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleViewStock(item)}
+                          title="Lihat Stok"
+                        >
+                          <Package className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleViewLedger(item)}
+                          title="Histori Mutasi"
+                        >
+                          <History className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEdit(item)}
+                          title="Edit Barang"
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -310,6 +345,7 @@ export function ItemList() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDelete(item.id)}
+                          title="Hapus Barang"
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -356,6 +392,22 @@ export function ItemList() {
         onOpenChange={setFormOpen}
         item={editingItem}
         onSuccess={handleFormClose}
+      />
+
+      {/* Stock Balance View */}
+      <StockBalanceView
+        open={stockViewOpen}
+        onOpenChange={setStockViewOpen}
+        itemId={selectedItemForStock?.id || null}
+        itemName={selectedItemForStock?.name}
+      />
+
+      {/* Stock Ledger View */}
+      <StockLedgerView
+        open={ledgerViewOpen}
+        onOpenChange={setLedgerViewOpen}
+        itemId={selectedItemForLedger?.id || null}
+        itemName={selectedItemForLedger?.name}
       />
     </Card>
   );

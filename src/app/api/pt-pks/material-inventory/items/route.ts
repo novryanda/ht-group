@@ -5,6 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "~/server/auth";
 import { ItemsAPI } from "~/server/api/pt-pks/items";
 import type { ItemQueryParams } from "~/server/schemas/pt-pks/item";
 
@@ -52,8 +53,33 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Get session for user authentication
+    const session = await auth();
+    
+    // Debug: Log session structure
+    console.log("🔍 Session debug:", {
+      hasSession: !!session,
+      hasUser: !!session?.user,
+      userId: session?.user?.id,
+      userEmail: session?.user?.email,
+      userRole: session?.user?.role,
+      sessionStructure: session ? Object.keys(session) : null,
+      userStructure: session?.user ? Object.keys(session.user) : null
+    });
+    
+    if (!session?.user?.id) {
+      console.log("❌ Authentication failed - no user ID in session");
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Authentication required",
+        },
+        { status: 401 },
+      );
+    }
+
     const body = await request.json();
-    const result = await itemsAPI.create(body);
+    const result = await itemsAPI.create(body, session.user.id);
 
     return NextResponse.json(result, { status: result.statusCode });
   } catch (error) {

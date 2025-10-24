@@ -23,8 +23,8 @@ export class ItemsAPI {
   /**
    * Create new item
    */
-  async create(data: unknown) {
-    return this.itemService.createItem(data);
+  async create(data: unknown, userId?: string) {
+    return this.itemService.createItem(data, userId);
   }
 
   /**
