@@ -91,6 +91,8 @@ export class WarehouseOutboundService {
             warehouse: { connect: { id: input.warehouseId } },
             purpose: input.purpose,
             targetDept: input.targetDept,
+            pickerName: input.pickerName,
+            status: "APPROVED", // Default status
             note: input.note,
             createdById,
           },

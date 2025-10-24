@@ -106,12 +106,19 @@ export function ItemList() {
         method: "DELETE",
       });
 
+      const result = await res.json();
+
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || "Failed to delete item");
+        throw new Error(result.error || "Failed to delete item");
       }
 
-      toast.success("Barang berhasil dihapus");
+      // Show appropriate message
+      if (result.message) {
+        toast.warning(result.message);
+      } else {
+        toast.success("Barang berhasil dihapus");
+      }
+      
       refetch();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Gagal menghapus barang");

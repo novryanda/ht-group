@@ -11,6 +11,7 @@ export interface WarehouseOutboundDTO {
   warehouseName?: string;
   purpose: string; // LOAN | ISSUE | PROD | SCRAP
   targetDept: string;
+  pickerName?: string; // Nama pengambil barang
   note?: string;
   status: string; // DRAFT | APPROVED | RETURNED | PARTIAL_RETURN | CANCELLED
   createdById: string;
@@ -38,6 +39,7 @@ export interface CreateWarehouseOutboundDTO {
   warehouseId: string;
   purpose: string;
   targetDept: string;
+  pickerName?: string;
   note?: string;
   lines: CreateWarehouseOutboundLineDTO[];
 }

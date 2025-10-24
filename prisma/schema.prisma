@@ -769,6 +769,8 @@ model GoodsIssue {
   warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
   purpose     String    // ISSUE|LOAN|PROD|SCRAP
   targetDept  String?
+  pickerName  String?   // Nama pengambil barang
+  status      String    @default("APPROVED") // DRAFT|APPROVED|RETURNED|PARTIAL_RETURN|CANCELLED
   note        String?   @db.Text
   createdById String
   createdAt   DateTime  @default(now())
@@ -779,6 +781,7 @@ model GoodsIssue {
 
   @@index([date])
   @@index([warehouseId])
+  @@index([status])
 }
 
 // GoodsIssueLine (Detail Barang Keluar) Model

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { BarangKeluarList } from "./barang-keluar-list";
+import { BarangMasukList } from "./barang-masuk-list";
 import { Package, PackageOpen, FileText } from "lucide-react";
 
 export function TransaksiGudangDashboard() {
@@ -57,7 +58,7 @@ export function TransaksiGudangDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">Coming soon...</p>
+              <BarangMasukList />
             </CardContent>
           </Card>
         </TabsContent>

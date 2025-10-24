@@ -1,32 +1,30 @@
-import type { GoodsIssue, GoodsIssueLine, Warehouse, Item, Unit } from "@prisma/client";
-import type { WarehouseOutboundDTO, WarehouseOutboundLineDTO } from "~/server/types/pt-pks/warehouse-transaction";
+import type { GoodsReceipt, GoodsReceiptLine, Warehouse, Item, Unit } from "@prisma/client";
+import type { WarehouseInboundDTO, WarehouseInboundLineDTO } from "~/server/types/pt-pks/warehouse-transaction";
 
-type GoodsIssueWithRelations = GoodsIssue & {
+type GoodsReceiptWithRelations = GoodsReceipt & {
   warehouse: Warehouse;
   lines: Array<
-    GoodsIssueLine & {
+    GoodsReceiptLine & {
       item: Item;
       unit: Unit;
     }
   >;
 };
 
-export class WarehouseOutboundMapper {
+export class WarehouseInboundMapper {
   /**
-   * Map Prisma GoodsIssue to DTO
+   * Map Prisma GoodsReceipt to DTO
    */
-  static toDTO(data: GoodsIssueWithRelations): WarehouseOutboundDTO {
+  static toDTO(data: GoodsReceiptWithRelations): WarehouseInboundDTO {
     return {
       id: data.id,
       docNumber: data.docNumber,
       date: data.date.toISOString(),
       warehouseId: data.warehouseId,
       warehouseName: data.warehouse.name,
-      purpose: data.purpose,
-      targetDept: data.targetDept ?? "",
-      pickerName: data.pickerName ?? undefined,
+      sourceType: data.sourceType,
+      sourceRef: data.sourceRef ?? undefined,
       note: data.note ?? undefined,
-      status: data.status,
       createdById: data.createdById,
       createdAt: data.createdAt.toISOString(),
       updatedAt: data.updatedAt.toISOString(),
@@ -35,31 +33,31 @@ export class WarehouseOutboundMapper {
   }
 
   /**
-   * Map array of GoodsIssue to DTOs
+   * Map array of GoodsReceipt to DTOs
    */
-  static toDTOList(data: GoodsIssueWithRelations[]): WarehouseOutboundDTO[] {
+  static toDTOList(data: GoodsReceiptWithRelations[]): WarehouseInboundDTO[] {
     return data.map((item) => this.toDTO(item));
   }
 
   /**
-   * Map GoodsIssueLine to DTO
+   * Map GoodsReceiptLine to DTO
    */
   static lineToDTO(
-    line: GoodsIssueLine & {
+    line: GoodsReceiptLine & {
       item: Item;
       unit: Unit;
     }
-  ): WarehouseOutboundLineDTO {
+  ): WarehouseInboundLineDTO {
     return {
       id: line.id,
-      outboundId: line.issueId,
+      inboundId: line.receiptId,
       itemId: line.itemId,
       itemName: line.item.name,
       itemSKU: line.item.sku,
       unitId: line.unitId,
       unitName: line.unit.name,
       qty: Number(line.qty),
-      qtyReturned: 0, // TODO: Track returned qty from inbound returns
+      unitCost: line.unitCost ? Number(line.unitCost) : undefined,
       note: line.note ?? undefined,
     };
   }

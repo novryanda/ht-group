@@ -13,8 +13,9 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { Badge } from "~/components/ui/badge";
-import { Plus, Search, Eye, Pencil, Trash2, Loader2, PackagePlus } from "lucide-react";
+import { Plus, Search, Eye, Pencil, Trash2, Loader2, PackagePlus, FileDown } from "lucide-react";
 import { BarangKeluarFormDialog } from "./barang-keluar-form-dialog";
+import { BarangMasukFormDialog } from "./barang-masuk-form-dialog";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 
@@ -40,6 +41,8 @@ export function BarangKeluarList() {
   const [page, setPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showReturnDialog, setShowReturnDialog] = useState(false);
+  const [returnOutboundId, setReturnOutboundId] = useState<string>("");
 
   // Fetch data
   const { data, isLoading, refetch } = useQuery({
@@ -68,9 +71,28 @@ export function BarangKeluarList() {
   };
 
   const handleReturn = (outbound: WarehouseOutbound) => {
-    // Navigate to barang masuk with return data
-    // TODO: Implement barang masuk return flow
-    alert(`Fitur pengembalian barang untuk dokumen ${outbound.docNumber} akan segera hadir!`);
+    setReturnOutboundId(outbound.id);
+    setShowReturnDialog(true);
+  };
+
+  const handleDownloadPDF = async (id: string, docNumber: string) => {
+    try {
+      const res = await fetch(`/api/pt-pks/transaksi-gudang/barang-keluar/${id}/pdf`);
+      if (!res.ok) throw new Error("Failed to download PDF");
+      
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Barang-Keluar-${docNumber.replace(/\//g, "-")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("❌ Error downloading PDF:", error);
+      alert("Gagal mendownload PDF");
+    }
   };
 
   const getPurposeBadge = (purpose: string) => {
@@ -87,6 +109,24 @@ export function BarangKeluarList() {
       SCRAP: "Scrap",
     };
     return <Badge variant={variants[purpose] || "default"}>{labels[purpose] || purpose}</Badge>;
+  };
+
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+      DRAFT: "outline",
+      APPROVED: "default",
+      RETURNED: "secondary",
+      PARTIAL_RETURN: "outline",
+      CANCELLED: "destructive",
+    };
+    const labels: Record<string, string> = {
+      DRAFT: "Draft",
+      APPROVED: "Disetujui",
+      RETURNED: "Dikembalikan",
+      PARTIAL_RETURN: "Sebagian Kembali",
+      CANCELLED: "Dibatalkan",
+    };
+    return <Badge variant={variants[status] || "default"}>{labels[status] || status}</Badge>;
   };
 
   return (
@@ -120,6 +160,7 @@ export function BarangKeluarList() {
               <TableHead>Gudang</TableHead>
               <TableHead>Tujuan</TableHead>
               <TableHead>Divisi</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Jumlah Item</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
@@ -127,7 +168,7 @@ export function BarangKeluarList() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
+                <TableCell colSpan={8} className="text-center py-8">
                   <div className="flex items-center justify-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span>Loading...</span>
@@ -136,7 +177,7 @@ export function BarangKeluarList() {
               </TableRow>
             ) : data?.data?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   Tidak ada data
                 </TableCell>
               </TableRow>
@@ -150,6 +191,7 @@ export function BarangKeluarList() {
                   <TableCell>{item.warehouseName}</TableCell>
                   <TableCell>{getPurposeBadge(item.purpose)}</TableCell>
                   <TableCell>{item.targetDept}</TableCell>
+                  <TableCell>{getStatusBadge(item.status)}</TableCell>
                   <TableCell>{item.lines.length} item</TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
@@ -165,12 +207,23 @@ export function BarangKeluarList() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleReturn(item)}
-                        className="gap-1 text-blue-600 hover:text-blue-700"
+                        onClick={() => handleDownloadPDF(item.id, item.docNumber)}
+                        className="gap-1 text-green-600 hover:text-green-700"
                       >
-                        <PackagePlus className="h-3.5 w-3.5" />
-                        Kembalikan
+                        <FileDown className="h-3.5 w-3.5" />
+                        PDF
                       </Button>
+                      {item.status !== "RETURNED" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleReturn(item)}
+                          className="gap-1 text-blue-600 hover:text-blue-700"
+                        >
+                          <PackagePlus className="h-3.5 w-3.5" />
+                          Kembalikan
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -208,13 +261,23 @@ export function BarangKeluarList() {
         </div>
       )}
 
-      {/* Form Dialog */}
+      {/* Form Dialogs */}
       <BarangKeluarFormDialog
         open={showForm}
         onOpenChange={setShowForm}
         outboundId={selectedId}
         onSuccess={() => {
           setShowForm(false);
+          void refetch();
+        }}
+      />
+
+      <BarangMasukFormDialog
+        open={showReturnDialog}
+        onOpenChange={setShowReturnDialog}
+        outboundId={returnOutboundId}
+        onSuccess={() => {
+          setShowReturnDialog(false);
           void refetch();
         }}
       />

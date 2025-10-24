@@ -4,6 +4,7 @@
  * stock validations, and multi-relation handling
  */
 
+import { db } from "~/server/db";
 import { ItemRepo } from "~/server/repositories/pt-pks/item.repo";
 import { categoryRepo } from "~/server/repositories/pt-pks/category.repo";
 import { itemTypeRepo } from "~/server/repositories/pt-pks/item-type.repo";
@@ -383,12 +384,13 @@ export class ItemService {
   }
 
   /**
-   * Delete item
+   * Delete an item (soft delete if used in transactions)
    */
   async deleteItem(id: string): Promise<{
     success: boolean;
     error?: string;
     statusCode: number;
+    message?: string;
   }> {
     try {
       const item = await this.itemRepo.findById(id);
@@ -400,6 +402,37 @@ export class ItemService {
         };
       }
 
+      // Check if item is used in transactions
+      const hasTransactions = await db.goodsIssueLine.findFirst({
+        where: { itemId: id },
+      });
+
+      const hasReceipts = await db.goodsReceiptLine.findFirst({
+        where: { itemId: id },
+      });
+
+      const hasStockBalance = await db.stockBalance.findFirst({
+        where: { 
+          itemId: id,
+          qtyOnHand: { gt: 0 },
+        },
+      });
+
+      // If item is used or has stock, soft delete (deactivate)
+      if (hasTransactions || hasReceipts || hasStockBalance) {
+        await db.item.update({
+          where: { id },
+          data: { isActive: false },
+        });
+
+        return {
+          success: true,
+          statusCode: 200,
+          message: "Item dinonaktifkan karena sudah digunakan dalam transaksi atau memiliki stok",
+        };
+      }
+
+      // If no transactions, safe to hard delete
       await this.itemRepo.delete(id);
 
       return {

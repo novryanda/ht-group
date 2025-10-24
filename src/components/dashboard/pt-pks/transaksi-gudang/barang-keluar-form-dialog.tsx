@@ -39,6 +39,7 @@ const formSchema = z.object({
   warehouseId: z.string().min(1, "Gudang wajib dipilih"),
   purpose: z.enum(["LOAN", "ISSUE", "PROD", "SCRAP"]),
   targetDept: z.string().min(1, "Divisi tujuan wajib diisi"),
+  pickerName: z.string().optional(),
   note: z.string().optional(),
   lines: z
     .array(
@@ -76,6 +77,7 @@ export function BarangKeluarFormDialog({
       warehouseId: "",
       purpose: "LOAN",
       targetDept: "",
+      pickerName: "",
       note: "",
       lines: [{ itemId: "", qty: 1, note: "" }],
     },
@@ -130,6 +132,7 @@ export function BarangKeluarFormDialog({
         warehouseId: data.warehouseId,
         purpose: data.purpose,
         targetDept: data.targetDept,
+        pickerName: data.pickerName || "",
         note: data.note || "",
         lines: data.lines.map((line: any) => ({
           itemId: line.itemId,
@@ -288,6 +291,20 @@ export function BarangKeluarFormDialog({
                     <FormLabel>Divisi Tujuan</FormLabel>
                     <FormControl>
                       <Input placeholder="Nama divisi" {...field} disabled={isEdit} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="pickerName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nama Pengambil (Opsional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nama orang yang mengambil barang" {...field} disabled={isEdit} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

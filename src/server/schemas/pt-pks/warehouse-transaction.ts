@@ -16,6 +16,7 @@ export const createWarehouseOutboundSchema = z.object({
   warehouseId: z.string().min(1, "Gudang wajib dipilih"),
   purpose: z.enum(["LOAN", "ISSUE", "PROD", "SCRAP"]),
   targetDept: z.string().min(1, "Divisi tujuan wajib diisi"),
+  pickerName: z.string().optional(),
   note: z.string().optional(),
   lines: z
     .array(warehouseOutboundLineSchema)
@@ -61,9 +62,8 @@ export const warehouseOutboundQuerySchema = z.object({
 
 export const warehouseInboundLineSchema = z.object({
   itemId: z.string().min(1, "Barang wajib dipilih"),
-  unitId: z.string().min(1, "Satuan wajib dipilih"),
+  unitId: z.string().optional(), // Auto dari baseUnitId
   qty: z.number().positive("Jumlah harus lebih dari 0"),
-  unitCost: z.number().nonnegative("Harga satuan tidak boleh negatif").optional(),
   note: z.string().optional(),
 });
 
