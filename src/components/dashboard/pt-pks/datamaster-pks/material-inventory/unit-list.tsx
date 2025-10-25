@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Pencil, Trash2, Loader2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
+import { Checkbox } from "~/components/ui/checkbox";
 import { Input } from "~/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import {
@@ -30,6 +31,36 @@ import { UnitFormDialog } from "./unit-form-dialog";
 import type { UnitDTO } from "~/server/types/pt-pks/material-inventory";
 
 export function UnitList() {
+  // Bulk select state
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const handleSelectAll = (checked: boolean) => {
+    setSelectedIds(checked ? allIds : []);
+  };
+  const handleSelectRow = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => checked ? [...prev, id] : prev.filter((x) => x !== id));
+  };
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Hapus ${selectedIds.length} satuan terpilih?`)) return;
+    try {
+      const res = await fetch("/api/pt-pks/material-inventory/units/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      const result = await res.json();
+      if (!result.success) {
+        toast({ title: "Sebagian gagal dihapus", description: "Beberapa satuan gagal dihapus.", variant: "destructive" });
+      } else {
+        toast({ title: "Berhasil", description: "Satuan terpilih berhasil dihapus." });
+      }
+      setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ["units"] });
+    } catch (error) {
+      toast({ title: "Gagal", description: "Gagal menghapus satuan." });
+    }
+  };
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -38,7 +69,6 @@ export function UnitList() {
   const [editUnit, setEditUnit] = useState<UnitDTO | null>(null);
   const [deleteUnit, setDeleteUnit] = useState<UnitDTO | null>(null);
 
-  // Fetch units
   const { data, isLoading } = useQuery({
     queryKey: ["units", { search, page }],
     queryFn: async () => {
@@ -53,6 +83,11 @@ export function UnitList() {
       return res.json();
     },
   });
+
+  const units = data?.data?.data || [];
+  const allIds = units.map((unit: UnitDTO) => unit.id);
+  const isAllSelected = allIds.length > 0 && selectedIds.length === allIds.length;
+  const isIndeterminate = selectedIds.length > 0 && selectedIds.length < allIds.length;
 
   // Delete mutation
   const deleteMutation = useMutation({
@@ -114,10 +149,18 @@ export function UnitList() {
                   className="pl-8"
                 />
               </div>
-              <Button onClick={handleAdd} className="gap-2">
-                <Plus className="h-4 w-4" />
-                Tambah Satuan
-              </Button>
+              <div className="flex gap-2">
+                {selectedIds.length > 0 && (
+                  <Button variant="destructive" onClick={handleBulkDelete}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Hapus Terpilih ({selectedIds.length})
+                  </Button>
+                )}
+                <Button onClick={handleAdd} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Tambah Satuan
+                </Button>
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -136,6 +179,13 @@ export function UnitList() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-8">
+                        <Checkbox
+                          checked={isAllSelected || (isIndeterminate ? 'indeterminate' as any : false)}
+                          onCheckedChange={handleSelectAll}
+                          aria-label="Pilih semua"
+                        />
+                      </TableHead>
                       <TableHead>Kode</TableHead>
                       <TableHead>Nama</TableHead>
                       <TableHead>Satuan Dasar</TableHead>
@@ -145,49 +195,59 @@ export function UnitList() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data?.data?.data?.map((unit: UnitDTO) => (
-                      <TableRow key={unit.id}>
-                        <TableCell className="font-medium">{unit.code}</TableCell>
-                        <TableCell>{unit.name}</TableCell>
-                        <TableCell>
-                          {unit.isBase ? (
-                            <Badge variant="secondary">Base Unit</Badge>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {unit.conversionToBase === 1
-                            ? "1"
-                            : unit.conversionToBase}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={unit.isActive ? "default" : "secondary"}
-                          >
-                            {unit.isActive ? "Aktif" : "Nonaktif"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEdit(unit)}
+                    {units.map((unit: UnitDTO) => {
+                      const checked = selectedIds.includes(unit.id);
+                      return (
+                        <TableRow key={unit.id} data-state={checked ? "selected" : undefined}>
+                          <TableCell>
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(v) => handleSelectRow(unit.id, !!v)}
+                              aria-label={`Pilih ${unit.name}`}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium">{unit.code}</TableCell>
+                          <TableCell>{unit.name}</TableCell>
+                          <TableCell>
+                            {unit.isBase ? (
+                              <Badge variant="secondary">Base Unit</Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {unit.conversionToBase === 1
+                              ? "1"
+                              : unit.conversionToBase}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={unit.isActive ? "default" : "secondary"}
                             >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setDeleteUnit(unit)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                              {unit.isActive ? "Aktif" : "Nonaktif"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEdit(unit)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setDeleteUnit(unit)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

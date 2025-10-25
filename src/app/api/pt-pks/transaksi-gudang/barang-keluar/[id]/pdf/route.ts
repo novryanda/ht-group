@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateBarangKeluarPDF } from "~/lib/pdf-generator";
+import { generateBarangKeluarPDF } from "~/lib/template-pdf/transaksi-gudang/pdf-generator";
 import { db } from "~/server/db";
 
 export async function GET(

@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState } from "react";
+// removed duplicate useState import
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
@@ -36,6 +36,39 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
+import { AnimatedThemeToggler } from "~/components/ui/animated-theme-toggler";
+import { useEffect, useState, useRef, forwardRef } from "react";
+// ThemeDropdownMenuItem component for theme toggling with label
+const ThemeDropdownMenuItem = () => {
+  const [isDark, setIsDark] = useState(false);
+  const togglerRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const updateTheme = () => setIsDark(document.documentElement.classList.contains("dark"));
+    updateTheme();
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+
+  const handleMenuClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    togglerRef.current?.click();
+  };
+
+  // Forward ref to AnimatedThemeToggler
+  const ForwardedToggler = forwardRef<HTMLButtonElement>((props, ref) => (
+    <AnimatedThemeToggler {...props} ref={ref} />
+  ));
+
+  return (
+    <DropdownMenuItem className="cursor-pointer" onClick={handleMenuClick}>
+      <div className="flex items-center gap-2 w-full">
+        <ForwardedToggler ref={togglerRef} />
+        <span>{isDark ? "Light" : "Dark"}</span>
+      </div>
+    </DropdownMenuItem>
+  );
+};
 import {
   Building2,
   Home,
@@ -519,6 +552,7 @@ export function AppSidebar() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <ThemeDropdownMenuItem />
                 <DropdownMenuItem onClick={handleSignOut}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout

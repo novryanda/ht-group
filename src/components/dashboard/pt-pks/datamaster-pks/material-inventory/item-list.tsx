@@ -13,6 +13,7 @@ import {
   History,
 } from "lucide-react";
 import { Button } from "~/components/ui/button";
+import { Checkbox } from "~/components/ui/checkbox";
 import { Input } from "~/components/ui/input";
 import {
   Table,
@@ -38,6 +39,37 @@ import { StockLedgerView } from "./stock-ledger-view";
 import type { ItemDTO } from "~/server/types/pt-pks/material-inventory";
 
 export function ItemList() {
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const handleSelectAll = (checked: boolean) => {
+    setSelectedIds(checked ? allIds : []);
+  };
+
+  const handleSelectRow = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => checked ? [...prev, id] : prev.filter((x) => x !== id));
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Hapus ${selectedIds.length} barang terpilih?`)) return;
+    try {
+      const res = await fetch("/api/pt-pks/material-inventory/items/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      const result = await res.json();
+      if (!result.success) {
+        toast.error("Beberapa item gagal dihapus.");
+      } else {
+        toast.success("Barang terpilih berhasil dihapus.");
+      }
+      setSelectedIds([]);
+      refetch();
+    } catch (error) {
+      toast.error("Gagal menghapus barang.");
+    }
+  };
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState<string>("");
@@ -51,7 +83,11 @@ export function ItemList() {
   const [ledgerViewOpen, setLedgerViewOpen] = useState(false);
   const [selectedItemForLedger, setSelectedItemForLedger] = useState<{ id: string; name: string } | null>(null);
 
+
   const limit = 10;
+
+  // items & meta harus dideklarasikan di sini agar bisa dipakai sebelum Table
+  // ...existing code...
 
   // Fetch items with filters
   const { data, isLoading, refetch } = useQuery({
@@ -72,6 +108,14 @@ export function ItemList() {
     },
   });
 
+  // items & meta dideklarasikan setelah data tersedia
+  const items = data?.data?.data || [];
+  const meta = data?.data?.meta || { page: 1, totalPages: 1, total: 0 };
+  // Bulk select helpers
+  const allIds = items.map((item: ItemDTO) => item.id);
+  const isAllSelected = allIds.length > 0 && selectedIds.length === allIds.length;
+  const isIndeterminate = selectedIds.length > 0 && selectedIds.length < allIds.length;
+
   // Fetch categories for filter
   const { data: categoriesData } = useQuery({
     queryKey: ["categories-active"],
@@ -86,6 +130,7 @@ export function ItemList() {
   const { data: itemTypesData } = useQuery({
     queryKey: ["item-types-filter", categoryFilter],
     queryFn: async () => {
+    const meta = data?.data?.meta || { page: 1, totalPages: 1, total: 0 };
       const params = new URLSearchParams({
         isActive: "true",
         limit: "100",
@@ -161,18 +206,25 @@ export function ItemList() {
 
   const hasActiveFilters = categoryFilter || itemTypeFilter || statusFilter !== "all" || searchTerm;
 
-  const items = data?.data?.data || [];
-  const meta = data?.data?.meta || { page: 1, totalPages: 1, total: 0 };
+  // ...existing code...
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Daftar Barang</CardTitle>
-          <Button onClick={handleCreate}>
-            <Plus className="mr-2 h-4 w-4" />
-            Tambah Barang
-          </Button>
+          <div className="flex gap-2">
+            {selectedIds.length > 0 && (
+              <Button variant="destructive" onClick={handleBulkDelete}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Hapus Terpilih ({selectedIds.length})
+              </Button>
+            )}
+            <Button onClick={handleCreate}>
+              <Plus className="mr-2 h-4 w-4" />
+              Tambah Barang
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -279,6 +331,13 @@ export function ItemList() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-8">
+                  <Checkbox
+                    checked={isAllSelected || (isIndeterminate ? 'indeterminate' as any : false)}
+                    onCheckedChange={handleSelectAll}
+                    aria-label="Pilih semua"
+                  />
+                </TableHead>
                 <TableHead>SKU</TableHead>
                 <TableHead>Nama Barang</TableHead>
                 <TableHead>Kategori</TableHead>
@@ -293,73 +352,83 @@ export function ItemList() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center">
+                  <TableCell colSpan={10} className="text-center">
                     Loading...
                   </TableCell>
                 </TableRow>
               ) : items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center text-muted-foreground">
                     Tidak ada data barang
                   </TableCell>
                 </TableRow>
               ) : (
-                items.map((item: ItemDTO) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-mono text-sm">{item.sku}</TableCell>
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell>{item.categoryName}</TableCell>
-                    <TableCell>{item.itemTypeName}</TableCell>
-                    <TableCell>{item.baseUnitName}</TableCell>
-                    <TableCell className="text-right">
-                      {item.minStock !== undefined ? item.minStock.toLocaleString() : "-"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {item.maxStock !== undefined ? item.maxStock.toLocaleString() : "-"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={item.isActive ? "default" : "secondary"}>
-                        {item.isActive ? "Aktif" : "Tidak Aktif"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleViewStock(item)}
-                          title="Lihat Stok"
-                        >
-                          <Package className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleViewLedger(item)}
-                          title="Histori Mutasi"
-                        >
-                          <History className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(item)}
-                          title="Edit Barang"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(item.id)}
-                          title="Hapus Barang"
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                items.map((item: ItemDTO) => {
+                  const checked = selectedIds.includes(item.id);
+                  return (
+                    <TableRow key={item.id} data-state={checked ? "selected" : undefined}>
+                      <TableCell>
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => handleSelectRow(item.id, !!v)}
+                          aria-label={`Pilih ${item.name}`}
+                        />
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">{item.sku}</TableCell>
+                      <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell>{item.categoryName}</TableCell>
+                      <TableCell>{item.itemTypeName}</TableCell>
+                      <TableCell>{item.baseUnitName}</TableCell>
+                      <TableCell className="text-right">
+                        {item.minStock !== undefined ? item.minStock.toLocaleString() : "-"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {item.maxStock !== undefined ? item.maxStock.toLocaleString() : "-"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={item.isActive ? "default" : "secondary"}>
+                          {item.isActive ? "Aktif" : "Tidak Aktif"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleViewStock(item)}
+                            title="Lihat Stok"
+                          >
+                            <Package className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleViewLedger(item)}
+                            title="Histori Mutasi"
+                          >
+                            <History className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(item)}
+                            title="Edit Barang"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(item.id)}
+                            title="Hapus Barang"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>

@@ -32,7 +32,6 @@ export function generateBarangKeluarPDF(data: OutboundPDFData) {
   const formattedDate = format(dateObj, "dd MMMM yyyy", { locale: localeId });
 
   // Title
-  doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
   doc.text("BARANG KELUAR", 105, 20, { align: "center" });
 

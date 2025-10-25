@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Pencil, Trash2, Loader2, Filter } from "lucide-react";
 import { Button } from "~/components/ui/button";
+import { Checkbox } from "~/components/ui/checkbox";
 import { Input } from "~/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import {
@@ -37,6 +38,36 @@ import { ItemTypeFormDialog } from "./item-type-form-dialog";
 import type { ItemTypeDTO, CategoryDTO } from "~/server/types/pt-pks/material-inventory";
 
 export function ItemTypeList() {
+  // Bulk select state
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const handleSelectAll = (checked: boolean) => {
+    setSelectedIds(checked ? allIds : []);
+  };
+  const handleSelectRow = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => checked ? [...prev, id] : prev.filter((x) => x !== id));
+  };
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Hapus ${selectedIds.length} jenis barang terpilih?`)) return;
+    try {
+      const res = await fetch("/api/pt-pks/material-inventory/item-types/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      const result = await res.json();
+      if (!result.success) {
+        toast({ title: "Sebagian gagal dihapus", description: "Beberapa jenis gagal dihapus.", variant: "destructive" });
+      } else {
+        toast({ title: "Berhasil", description: "Jenis terpilih berhasil dihapus." });
+      }
+      setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: ["item-types"] });
+    } catch (error) {
+      toast({ title: "Gagal", description: "Gagal menghapus jenis." });
+    }
+  };
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -56,7 +87,6 @@ export function ItemTypeList() {
     },
   });
 
-  // Fetch item types
   const { data, isLoading } = useQuery({
     queryKey: ["item-types", { search, categoryFilter, page }],
     queryFn: async () => {
@@ -74,6 +104,11 @@ export function ItemTypeList() {
       return res.json();
     },
   });
+
+  const itemTypes = data?.data?.data || [];
+  const allIds = itemTypes.map((item: ItemTypeDTO) => item.id);
+  const isAllSelected = allIds.length > 0 && selectedIds.length === allIds.length;
+  const isIndeterminate = selectedIds.length > 0 && selectedIds.length < allIds.length;
 
   // Delete mutation
   const deleteMutation = useMutation({
@@ -128,10 +163,18 @@ export function ItemTypeList() {
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle>Daftar Jenis Barang</CardTitle>
-              <Button onClick={handleAdd} className="gap-2">
-                <Plus className="h-4 w-4" />
-                Tambah Jenis
-              </Button>
+              <div className="flex gap-2">
+                {selectedIds.length > 0 && (
+                  <Button variant="destructive" onClick={handleBulkDelete}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Hapus Terpilih ({selectedIds.length})
+                  </Button>
+                )}
+                <Button onClick={handleAdd} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Tambah Jenis
+                </Button>
+              </div>
             </div>
             
             {/* Filters */}
@@ -177,6 +220,13 @@ export function ItemTypeList() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-8">
+                        <Checkbox
+                          checked={isAllSelected || (isIndeterminate ? 'indeterminate' as any : false)}
+                          onCheckedChange={handleSelectAll}
+                          aria-label="Pilih semua"
+                        />
+                      </TableHead>
                       <TableHead>Kode</TableHead>
                       <TableHead>Nama</TableHead>
                       <TableHead>Kategori</TableHead>
@@ -186,43 +236,53 @@ export function ItemTypeList() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {data?.data?.data?.map((itemType: ItemTypeDTO) => (
-                      <TableRow key={itemType.id}>
-                        <TableCell className="font-medium">{itemType.code}</TableCell>
-                        <TableCell>{itemType.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{itemType.categoryName}</Badge>
-                        </TableCell>
-                        <TableCell className="max-w-xs truncate">
-                          {itemType.description || "-"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={itemType.isActive ? "default" : "secondary"}
-                          >
-                            {itemType.isActive ? "Aktif" : "Nonaktif"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEdit(itemType)}
+                    {itemTypes.map((itemType: ItemTypeDTO) => {
+                      const checked = selectedIds.includes(itemType.id);
+                      return (
+                        <TableRow key={itemType.id} data-state={checked ? "selected" : undefined}>
+                          <TableCell>
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(v) => handleSelectRow(itemType.id, !!v)}
+                              aria-label={`Pilih ${itemType.name}`}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium">{itemType.code}</TableCell>
+                          <TableCell>{itemType.name}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{itemType.categoryName}</Badge>
+                          </TableCell>
+                          <TableCell className="max-w-xs truncate">
+                            {itemType.description || "-"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={itemType.isActive ? "default" : "secondary"}
                             >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setDeleteItemType(itemType)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                              {itemType.isActive ? "Aktif" : "Nonaktif"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEdit(itemType)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setDeleteItemType(itemType)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
