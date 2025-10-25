@@ -10,6 +10,11 @@ import { baseAuthConfig } from "./base-config";
  */
 export const authConfig: NextAuthConfig = {
   ...baseAuthConfig,
+  session: {
+    strategy: "jwt",
+    maxAge: 60 * 60, // 1 jam
+    updateAge: 60 * 15, // refresh setiap 15 menit
+  },
   providers: [
     Credentials({
       credentials: {
