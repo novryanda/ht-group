@@ -544,6 +544,27 @@ model OpeningBalance {
 }
 
 // ============================================
+// DATA MUTU PRODUKSI - PT PKS
+// ============================================
+
+// PksMutuProduksi - Data mutu produksi dari Google Sheets
+model PksMutuProduksi {
+  id          String   @id @default(cuid())
+  rowId       String   @unique
+  tanggal     DateTime
+  shift       String   @db.VarChar(10)
+  payload     Json
+  syncStatus  String?  @db.VarChar(20)
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tanggal, shift])
+  @@index([tanggal])
+  @@index([shift])
+}
+
+// ============================================
 // MATERIAL INVENTORY MODELS - PT PKS
 // ============================================
 

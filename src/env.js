@@ -19,6 +19,7 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
+    SHEETS_INGEST_KEY: z.string().min(1, "SHEETS_INGEST_KEY is required"),
   },
 
   /**
@@ -27,7 +28,7 @@ export const env = createEnv({
    * `NEXT_PUBLIC_`.
    */
   client: {
-    // NEXT_PUBLIC_CLIENTVAR: z.string(),
+    NEXT_PUBLIC_SHEET_URL: z.string().url().optional(),
   },
 
   /**
@@ -39,6 +40,8 @@ export const env = createEnv({
     AUTH_TRUST_HOST: process.env.AUTH_TRUST_HOST,
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
+    SHEETS_INGEST_KEY: process.env.SHEETS_INGEST_KEY,
+    NEXT_PUBLIC_SHEET_URL: process.env.NEXT_PUBLIC_SHEET_URL,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
