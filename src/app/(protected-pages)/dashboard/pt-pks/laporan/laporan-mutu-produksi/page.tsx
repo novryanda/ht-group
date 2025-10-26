@@ -1,11 +1,6 @@
 
-import { EmptyPageTemplate } from "~/components/dashboard/empty-page-template";
+import DailyReportForm from "~/components/dashboard/pt-pks/laporan/laporan-mutu-produksi/daily-report-form";
 
 export default function LaporanMutuProduksiPage() {
-	return (
-		<EmptyPageTemplate
-			title="Laporan Mutu Produksi"
-			module="PT PKS - Laporan Mutu Produksi"
-		/>
-	);
+	return <DailyReportForm />;
 }
