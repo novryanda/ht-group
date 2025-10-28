@@ -7,6 +7,7 @@ import { db } from "~/server/db";
 import { WarehouseOutboundRepo } from "~/server/repositories/pt-pks/warehouse-outbound.repo";
 import { WarehouseOutboundMapper } from "~/server/mappers/pt-pks/warehouse-outbound.mapper";
 import { StockService } from "./stock.service";
+import { GLService } from "./gl.service";
 import type {
   CreateWarehouseOutboundInput,
   UpdateWarehouseOutboundInput,
@@ -20,10 +21,12 @@ import type {
 export class WarehouseOutboundService {
   private repo: WarehouseOutboundRepo;
   private stockService: StockService;
+  private glService: GLService;
 
   constructor() {
     this.repo = new WarehouseOutboundRepo();
     this.stockService = new StockService();
+    this.glService = new GLService();
   }
 
   /**
@@ -31,7 +34,8 @@ export class WarehouseOutboundService {
    */
   async createOutbound(
     input: CreateWarehouseOutboundInput,
-    createdById: string
+    createdById: string,
+    companyId: string
   ): Promise<{ success: boolean; data?: WarehouseOutboundDTO; error?: string }> {
     try {
       // 1. Validate warehouse exists and is active
@@ -83,30 +87,11 @@ export class WarehouseOutboundService {
 
       // 5. Create outbound in transaction
       const result = await db.$transaction(async (tx) => {
-        // Create outbound document
-        const outbound = await this.repo.create(
-          {
-            docNumber,
-            date: new Date(input.date),
-            warehouse: { connect: { id: input.warehouseId } },
-            purpose: input.purpose,
-            targetDept: input.targetDept,
-            pickerName: input.pickerName,
-            status: "APPROVED", // Default status
-            note: input.note,
-            createdById,
-          },
-          input.lines.map((line) => ({
-            itemId: line.itemId,
-            unitId: line.unitId,
-            qty: line.qty,
-            note: line.note,
-          }))
-        );
+        // Prepare line items with unit costs
+        const linesWithCosts = [];
+        let totalValue = 0;
 
-        // Update stock balances and create ledger entries
         for (const line of input.lines) {
-          // Get item to check base unit
           const item = items.find((i) => i.id === line.itemId);
           if (!item) continue;
 
@@ -119,10 +104,7 @@ export class WarehouseOutboundService {
             throw new Error(`Satuan tidak ditemukan untuk item ${item.name}`);
           }
 
-          // Convert to base unit
-          const qtyInBaseUnit = line.qty * Number(unit.conversionToBase);
-
-          // Decrease stock
+          // Get stock balance to get unit cost
           const stockBalance = await tx.stockBalance.findFirst({
             where: {
               itemId: line.itemId,
@@ -134,7 +116,66 @@ export class WarehouseOutboundService {
             throw new Error(`Stok tidak ditemukan untuk barang ${item.name}`);
           }
 
-          const newQty = Number(stockBalance.qtyOnHand) - qtyInBaseUnit;
+          const unitCost = Number(stockBalance.avgCost);
+          const qtyInBaseUnit = line.qty * Number(unit.conversionToBase);
+          const lineValue = qtyInBaseUnit * unitCost;
+          totalValue += lineValue;
+
+          linesWithCosts.push({
+            itemId: line.itemId,
+            unitId: line.unitId,
+            qty: line.qty,
+            unitCost,
+            note: line.note,
+            qtyInBaseUnit,
+          });
+        }
+
+        // Create outbound document
+        const outbound = await this.repo.create(
+          {
+            docNumber,
+            date: new Date(input.date),
+            warehouse: { connect: { id: input.warehouseId } },
+            purpose: input.purpose,
+            targetDept: input.targetDept,
+            pickerName: input.pickerName,
+            status: "APPROVED",
+            note: input.note,
+            loanReceiver: input.loanReceiver,
+            expectedReturnAt: input.expectedReturnAt ? new Date(input.expectedReturnAt) : null,
+            loanNotes: input.loanNotes,
+            expenseAccountId: input.expenseAccountId,
+            costCenter: input.costCenter,
+            glStatus: "PENDING",
+            createdById,
+          },
+          linesWithCosts.map((line) => ({
+            itemId: line.itemId,
+            unitId: line.unitId,
+            qty: line.qty,
+            unitCost: line.unitCost,
+            note: line.note,
+          }))
+        );
+
+        // Update stock balances and create ledger entries
+        for (const line of linesWithCosts) {
+          const item = items.find((i) => i.id === line.itemId);
+          if (!item) continue;
+
+          const stockBalance = await tx.stockBalance.findFirst({
+            where: {
+              itemId: line.itemId,
+              warehouseId: input.warehouseId,
+            },
+          });
+
+          if (!stockBalance) {
+            throw new Error(`Stok tidak ditemukan untuk barang ${item.name}`);
+          }
+
+          const newQty = Number(stockBalance.qtyOnHand) - line.qtyInBaseUnit;
 
           if (newQty < 0) {
             throw new Error(`Stok ${item.name} tidak mencukupi`);
@@ -155,9 +196,63 @@ export class WarehouseOutboundService {
               binId: stockBalance.binId,
               referenceType: "OUT",
               referenceId: outbound.id,
-              qtyDelta: -qtyInBaseUnit,
+              qtyDelta: -line.qtyInBaseUnit,
+              unitCost: line.unitCost,
               note: `Barang keluar: ${input.purpose} - ${input.targetDept}`,
               createdById,
+            },
+          });
+        }
+
+        // Post GL based on purpose
+        try {
+          const glLines = await this.glService.buildGoodsIssueGLLines({
+            companyId,
+            purpose: input.purpose,
+            totalValue,
+            expenseAccountId: input.expenseAccountId,
+            costCenter: input.costCenter,
+            dept: input.targetDept,
+            warehouseId: input.warehouseId,
+          });
+
+          const glResult = await this.glService.postJournalEntry(
+            {
+              companyId,
+              date: new Date(input.date),
+              sourceType: "GoodsIssue",
+              sourceId: outbound.id,
+              sourceNumber: docNumber,
+              createdById,
+            },
+            glLines
+          );
+
+          if (glResult.success) {
+            await tx.goodsIssue.update({
+              where: { id: outbound.id },
+              data: {
+                glStatus: "POSTED",
+                glPostedAt: new Date(),
+                glEntryId: glResult.journalEntryId,
+              },
+            });
+          } else {
+            console.error("❌ GL posting failed:", glResult.error);
+            // Mark as failed but don't rollback transaction
+            await tx.goodsIssue.update({
+              where: { id: outbound.id },
+              data: {
+                glStatus: "FAILED",
+              },
+            });
+          }
+        } catch (glError) {
+          console.error("❌ GL posting error:", glError);
+          await tx.goodsIssue.update({
+            where: { id: outbound.id },
+            data: {
+              glStatus: "FAILED",
             },
           });
         }

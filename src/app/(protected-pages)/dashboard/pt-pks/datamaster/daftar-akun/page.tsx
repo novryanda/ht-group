@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { auth } from "~/server/auth";
-import { companyService } from "~/server/services/company.service";
+import { getPTPKSCompany } from "~/server/lib/company-helpers";
 import { DaftarAkunClient } from "~/components/dashboard/pt-pks/datamaster-pks/daftar-akun/coa-client";
 
 export default async function DaftarAkunPage() {
@@ -12,20 +12,11 @@ export default async function DaftarAkunPage() {
     redirect("/login");
   }
 
-  const preferredCodes = [
-    (session.user as any)?.companyCode,
-    "PT-PKS",
-  ].filter(Boolean) as string[];
-
   let company = null;
-  for (const code of preferredCodes) {
-    company = await companyService.getByCode(code);
-    if (company) break;
-  }
-
-  if (!company) {
-    const companies = await companyService.listAll();
-    company = companies[0] ?? null;
+  try {
+    company = await getPTPKSCompany();
+  } catch (error) {
+    console.error("Failed to get PT PKS company:", error);
   }
 
   if (!company) {
@@ -33,8 +24,8 @@ export default async function DaftarAkunPage() {
       <div className="container mx-auto flex max-w-3xl flex-col items-start gap-4 py-16">
         <h1 className="text-3xl font-semibold">PT PKS belum dikonfigurasi</h1>
         <p className="text-muted-foreground">
-          Sistem belum menemukan entitas perusahaan dengan kode <strong>PT-PKS</strong>. Tambahkan data
-          perusahaan terlebih dahulu melalui modul administrasi perusahaan lalu kembali ke halaman ini.
+          Sistem belum menemukan entitas perusahaan <strong>PT Perkebunan Sawit</strong>. Pastikan data
+          perusahaan sudah ditambahkan melalui seed database.
         </p>
         <Link href="/dashboard" className="text-primary underline underline-offset-4">
           Kembali ke dashboard utama

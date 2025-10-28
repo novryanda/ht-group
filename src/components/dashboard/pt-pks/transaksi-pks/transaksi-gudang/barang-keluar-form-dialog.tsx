@@ -41,6 +41,16 @@ const formSchema = z.object({
   targetDept: z.string().min(1, "Divisi tujuan wajib diisi"),
   pickerName: z.string().optional(),
   note: z.string().optional(),
+  
+  // Loan fields
+  loanReceiver: z.string().optional(),
+  expectedReturnAt: z.string().optional(),
+  loanNotes: z.string().optional(),
+  
+  // Accounting fields
+  expenseAccountId: z.string().optional(),
+  costCenter: z.string().optional(),
+  
   lines: z
     .array(
       z.object({
@@ -50,7 +60,19 @@ const formSchema = z.object({
       })
     )
     .min(1, "Minimal 1 item barang harus diisi"),
-});
+}).refine(
+  (data) => {
+    // If purpose is LOAN, loanReceiver is required
+    if (data.purpose === "LOAN" && !data.loanReceiver) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "Nama peminjam wajib diisi untuk tipe LOAN",
+    path: ["loanReceiver"],
+  }
+);
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -58,6 +80,7 @@ interface BarangKeluarFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   outboundId?: string | null;
+  defaultPurpose?: "LOAN" | "ISSUE" | "PROD" | "SCRAP";
   onSuccess?: () => void;
 }
 
@@ -65,6 +88,7 @@ export function BarangKeluarFormDialog({
   open,
   onOpenChange,
   outboundId,
+  defaultPurpose,
   onSuccess,
 }: BarangKeluarFormDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -75,10 +99,15 @@ export function BarangKeluarFormDialog({
     defaultValues: {
       date: format(new Date(), "yyyy-MM-dd"),
       warehouseId: "",
-      purpose: "LOAN",
+      purpose: defaultPurpose ?? "LOAN",
       targetDept: "",
       pickerName: "",
       note: "",
+      loanReceiver: "",
+      expectedReturnAt: "",
+      loanNotes: "",
+      expenseAccountId: "",
+      costCenter: "",
       lines: [{ itemId: "", qty: 1, note: "" }],
     },
   });
@@ -134,6 +163,11 @@ export function BarangKeluarFormDialog({
         targetDept: data.targetDept,
         pickerName: data.pickerName || "",
         note: data.note || "",
+        loanReceiver: data.loanReceiver || "",
+        expectedReturnAt: data.expectedReturnAt ? format(new Date(data.expectedReturnAt), "yyyy-MM-dd") : "",
+        loanNotes: data.loanNotes || "",
+        expenseAccountId: data.expenseAccountId || "",
+        costCenter: data.costCenter || "",
         lines: data.lines.map((line: any) => ({
           itemId: line.itemId,
           qty: line.qty,
@@ -264,7 +298,7 @@ export function BarangKeluarFormDialog({
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
-                      disabled={isEdit}
+                      disabled={isEdit || defaultPurpose === "LOAN"}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -272,10 +306,15 @@ export function BarangKeluarFormDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="LOAN">Peminjaman</SelectItem>
-                        <SelectItem value="ISSUE">Pengeluaran</SelectItem>
-                        <SelectItem value="PROD">Produksi</SelectItem>
-                        <SelectItem value="SCRAP">Scrap</SelectItem>
+                        {defaultPurpose === "LOAN" ? (
+                          <SelectItem value="LOAN">Peminjaman</SelectItem>
+                        ) : (
+                          <>
+                            <SelectItem value="ISSUE">Pengeluaran</SelectItem>
+                            <SelectItem value="PROD">Produksi</SelectItem>
+                            <SelectItem value="SCRAP">Scrap</SelectItem>
+                          </>
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -297,20 +336,99 @@ export function BarangKeluarFormDialog({
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="pickerName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nama Pengambil (Opsional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Nama orang yang mengambil barang" {...field} disabled={isEdit} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {form.watch("purpose") === "LOAN" && (
+                <FormField
+                  control={form.control}
+                  name="loanReceiver"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nama Peminjam</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Nama peminjam" {...field} disabled={isEdit} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
+
+            {/* Conditional fields for LOAN */}
+            {form.watch("purpose") === "LOAN" && (
+              <div className="grid grid-cols-2 gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="col-span-2">
+                  <h4 className="text-sm font-medium text-blue-900 mb-2">Detail Peminjaman</h4>
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="expectedReturnAt"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tanggal Jatuh Tempo (Opsional)</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} disabled={isEdit} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="loanNotes"
+                  render={({ field }) => (
+                    <FormItem className="col-span-2">
+                      <FormLabel>Catatan Peminjaman (Opsional)</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Catatan khusus peminjaman..." {...field} disabled={isEdit} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
+
+            {/* Conditional fields for ISSUE, PROD, SCRAP */}
+            {(form.watch("purpose") === "ISSUE" || form.watch("purpose") === "PROD" || form.watch("purpose") === "SCRAP") && (
+              <div className="grid grid-cols-2 gap-4 p-4 bg-amber-50 rounded-lg border border-amber-200">
+                <div className="col-span-2">
+                  <h4 className="text-sm font-medium text-amber-900 mb-2">Detail Akuntansi</h4>
+                </div>
+                
+                <FormField
+                  control={form.control}
+                  name="costCenter"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cost Center (Opsional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Kode cost center" {...field} disabled={isEdit} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="expenseAccountId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Akun Biaya (Opsional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="ID akun biaya spesifik" {...field} disabled={isEdit} />
+                      </FormControl>
+                      <FormMessage />
+                      <p className="text-xs text-muted-foreground">
+                        Kosongkan untuk menggunakan akun default sistem
+                      </p>
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
 
             <FormField
               control={form.control}

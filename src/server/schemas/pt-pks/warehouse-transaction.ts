@@ -18,6 +18,16 @@ export const createWarehouseOutboundSchema = z.object({
   targetDept: z.string().min(1, "Divisi tujuan wajib diisi"),
   pickerName: z.string().optional(),
   note: z.string().optional(),
+  
+  // Loan fields
+  loanReceiver: z.string().optional(),
+  expectedReturnAt: z.string().optional(),
+  loanNotes: z.string().optional(),
+  
+  // Accounting fields
+  expenseAccountId: z.string().optional(),
+  costCenter: z.string().optional(),
+  
   lines: z
     .array(warehouseOutboundLineSchema)
     .min(1, "Minimal 1 item barang harus diisi"),
@@ -32,6 +42,18 @@ export const createWarehouseOutboundSchema = z.object({
   {
     message: "Tanggal tidak boleh lebih dari hari ini",
     path: ["date"],
+  }
+).refine(
+  (data) => {
+    // If purpose is LOAN, loanReceiver is required
+    if (data.purpose === "LOAN" && !data.loanReceiver) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "Nama peminjam wajib diisi untuk tipe LOAN",
+    path: ["loanReceiver"],
   }
 );
 
@@ -65,13 +87,15 @@ export const warehouseInboundLineSchema = z.object({
   unitId: z.string().optional(), // Auto dari baseUnitId
   qty: z.number().positive("Jumlah harus lebih dari 0"),
   note: z.string().optional(),
+  loanIssueLineId: z.string().optional(), // For loan return
 });
 
 export const createWarehouseInboundSchema = z.object({
   date: z.string().min(1, "Tanggal wajib diisi"),
   warehouseId: z.string().min(1, "Gudang wajib dipilih"),
-  sourceType: z.enum(["RETURN", "NEW_ITEM", "PURCHASE", "PRODUCTION", "OTHER"]),
+  sourceType: z.enum(["RETURN", "NEW_ITEM", "PURCHASE", "PRODUCTION", "OTHER", "LOAN_RETURN"]),
   sourceRef: z.string().optional(),
+  loanIssueId: z.string().optional(), // Required if sourceType = LOAN_RETURN
   note: z.string().optional(),
   lines: z
     .array(warehouseInboundLineSchema)
@@ -87,6 +111,18 @@ export const createWarehouseInboundSchema = z.object({
   {
     message: "Tanggal tidak boleh lebih dari hari ini",
     path: ["date"],
+  }
+).refine(
+  (data) => {
+    // If sourceType is LOAN_RETURN, loanIssueId is required
+    if (data.sourceType === "LOAN_RETURN" && !data.loanIssueId) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "Loan Issue ID wajib diisi untuk tipe LOAN_RETURN",
+    path: ["loanIssueId"],
   }
 );
 
@@ -180,6 +216,39 @@ export const itemRequestQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(10),
 });
 
+// ============================================
+// LOAN RETURN SCHEMAS
+// ============================================
+
+export const loanReturnLineSchema = z.object({
+  loanIssueLineId: z.string().min(1, "Loan issue line ID wajib diisi"),
+  itemId: z.string().min(1, "Barang wajib dipilih"),
+  qtyReturned: z.number().positive("Jumlah yang dikembalikan harus lebih dari 0"),
+  note: z.string().optional(),
+});
+
+export const createLoanReturnSchema = z.object({
+  loanIssueId: z.string().min(1, "Loan issue ID wajib diisi"),
+  date: z.string().min(1, "Tanggal wajib diisi"),
+  warehouseId: z.string().min(1, "Gudang wajib dipilih"),
+  note: z.string().optional(),
+  lines: z
+    .array(loanReturnLineSchema)
+    .min(1, "Minimal 1 item barang harus diisi"),
+}).refine(
+  (data) => {
+    // Validate date is not future
+    const inputDate = new Date(data.date);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    return inputDate <= today;
+  },
+  {
+    message: "Tanggal tidak boleh lebih dari hari ini",
+    path: ["date"],
+  }
+);
+
 // Export types
 export type WarehouseOutboundLineInput = z.infer<typeof warehouseOutboundLineSchema>;
 export type CreateWarehouseOutboundInput = z.infer<typeof createWarehouseOutboundSchema>;
@@ -196,3 +265,6 @@ export type CreateItemRequestInput = z.infer<typeof createItemRequestSchema>;
 export type UpdateItemRequestInput = z.infer<typeof updateItemRequestSchema>;
 export type ApproveItemRequestInput = z.infer<typeof approveItemRequestSchema>;
 export type ItemRequestQuery = z.infer<typeof itemRequestQuerySchema>;
+
+export type LoanReturnLineInput = z.infer<typeof loanReturnLineSchema>;
+export type CreateLoanReturnInput = z.infer<typeof createLoanReturnSchema>;

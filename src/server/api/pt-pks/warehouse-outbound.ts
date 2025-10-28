@@ -26,7 +26,8 @@ export class WarehouseOutboundAPI {
    */
   async create(
     input: unknown,
-    createdById: string
+    createdById: string,
+    companyId: string
   ): Promise<{
     success: boolean;
     data?: WarehouseOutboundDTO;
@@ -46,7 +47,11 @@ export class WarehouseOutboundAPI {
         };
       }
 
-      const result = await this.service.createOutbound(validation.data, createdById);
+      const result = await this.service.createOutbound(
+        validation.data,
+        createdById,
+        companyId
+      );
 
       if (!result.success) {
         return {

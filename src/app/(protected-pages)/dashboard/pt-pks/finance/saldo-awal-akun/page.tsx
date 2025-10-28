@@ -1,5 +1,5 @@
 import { auth } from "~/server/auth";
-import { companyService } from "~/server/services/company.service";
+import { getPTPKSCompany } from "~/server/lib/company-helpers";
 import { SaldoAwalPageClient } from "~/components/dashboard/pt-pks/finance/saldo-awal-akun";
 
 export default async function SaldoAwalAkunPage() {
@@ -8,19 +8,11 @@ export default async function SaldoAwalAkunPage() {
     return null;
   }
 
-  const preferredCodes = [
-    (session.user as any)?.companyCode,
-    "PT-PKS",
-  ].filter(Boolean) as string[];
-
   let company = null;
-  for (const code of preferredCodes) {
-    company = await companyService.getByCode(code);
-    if (company) break;
-  }
-  if (!company) {
-    const fallback = await companyService.listAll();
-    company = fallback.find((item) => item.code === "PT-PKS") ?? fallback[0] ?? null;
+  try {
+    company = await getPTPKSCompany();
+  } catch (error) {
+    console.error("Failed to get PT PKS company:", error);
   }
 
   if (!company) {
@@ -29,7 +21,7 @@ export default async function SaldoAwalAkunPage() {
         <div className="rounded-md border p-8 text-center">
           <h1 className="text-2xl font-semibold">Perusahaan tidak ditemukan</h1>
           <p className="mt-2 text-muted-foreground">
-            Tambahkan data perusahaan PT-PKS terlebih dahulu sebelum mengelola saldo awal akun.
+            Pastikan data perusahaan PT Perkebunan Sawit sudah ditambahkan melalui seed database.
           </p>
         </div>
       </div>

@@ -91,6 +91,8 @@ import {
   Scale,
   Calendar,
   ArrowLeftRightIcon,
+  BookOpen,
+  TrendingUp,
 } from "lucide-react";
 
 // Define types for navigation
@@ -271,6 +273,10 @@ const ptNavigationData: Record<string, PTNavigationData> = {
         items: [
           { title: "Periode Fiskal", url: "/dashboard/pt-pks/finance/periode-fiskal", icon: Calendar },
           { title: "Saldo Awal Akun", url: "/dashboard/pt-pks/finance/saldo-awal-akun", icon: Receipt },
+          { title: "Jurnal Umum", url: "/dashboard/pt-pks/laporan/keuangan/jurnal-umum", icon: FileText },
+          { title: "Buku Besar", url: "/dashboard/pt-pks/laporan/keuangan/buku-besar", icon: BookOpen },
+          { title: "Neraca", url: "/dashboard/pt-pks/laporan/keuangan/neraca", icon: Scale },
+          { title: "Laba Rugi", url: "/dashboard/pt-pks/laporan/keuangan/laporan-keuangan", icon: TrendingUp }
         ],
       },
       {
@@ -299,6 +305,7 @@ const ptNavigationData: Record<string, PTNavigationData> = {
           { title: "Laporan Produksi", url: "/dashboard/pt-pks/laporan/laporan-produksi", icon: Scale },
         ],
       },
+      
     ],
     common: [
     ],

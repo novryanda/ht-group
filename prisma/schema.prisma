@@ -121,6 +121,7 @@ enum SystemAccountKey {
   SALES_KERNEL
   INVENTORY_CPO
   INVENTORY_KERNEL
+  INVENTORY_GENERAL // Inventory umum untuk material non-TBS/CPO/Kernel
   COGS_CPO
   COGS_KERNEL
   CASH_DEFAULT
@@ -129,6 +130,10 @@ enum SystemAccountKey {
   PPN_MASUKAN
   PPH22_DEFAULT
   PPH23_DEFAULT
+  INVENTORY_ON_LOAN
+  INVENTORY_ADJUSTMENT_LOSS
+  PRODUCTION_CONSUMPTION
+  MAINTENANCE_EXPENSE_DEFAULT
 }
 
 // Company Model
@@ -143,6 +148,7 @@ model Company {
   systemAccountMaps SystemAccountMap[]
   fiscalPeriods FiscalPeriod[]
   openingBalances OpeningBalance[]
+  journalEntries JournalEntry[]
 }
 
 // Employee Model (maps to karyawan table)
@@ -474,6 +480,7 @@ model Account {
 
   systemAccountMaps SystemAccountMap[]
   openingBalances   OpeningBalance[]
+  journalLines      JournalLine[]
 
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -745,64 +752,93 @@ model StockLedger {
 
 // GoodsReceipt (Barang Masuk) Model
 model GoodsReceipt {
-  id          String    @id @default(cuid())
-  docNumber   String    @unique
-  date        DateTime
-  warehouseId String
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  sourceType  String    // PURCHASE|RETURN|PRODUCTION|OTHER
-  sourceRef   String?
-  note        String?   @db.Text
-  createdById String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              String    @id @default(cuid())
+  docNumber       String    @unique
+  date            DateTime
+  warehouseId     String
+  warehouse       Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  sourceType      String    // PURCHASE|RETURN|PRODUCTION|OTHER|LOAN_RETURN
+  sourceRef       String?   // Reference to source document
+  loanIssueId     String?   // Reference ke GoodsIssue jika ini loan return
+  note            String?   @db.Text
+  
+  // Fields for accounting
+  glStatus        String    @default("PENDING") // PENDING|POSTED|FAILED
+  glPostedAt      DateTime?
+  glEntryId       String?   // Reference ke JournalEntry
+  
+  createdById     String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   // Relations
-  lines       GoodsReceiptLine[]
+  lines           GoodsReceiptLine[]
 
   @@index([date])
   @@index([warehouseId])
+  @@index([sourceType])
+  @@index([loanIssueId])
 }
 
 // GoodsReceiptLine (Detail Barang Masuk) Model
 model GoodsReceiptLine {
-  id          String       @id @default(cuid())
-  receiptId   String
-  receipt     GoodsReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
-  itemId      String
-  item        Item         @relation(fields: [itemId], references: [id], onDelete: Restrict)
-  unitId      String
-  unit        Unit         @relation(fields: [unitId], references: [id], onDelete: Restrict)
-  qty         Decimal      @db.Decimal(18,4)
-  unitCost    Decimal?     @db.Decimal(18,4)
-  note        String?      @db.Text
+  id              String       @id @default(cuid())
+  receiptId       String
+  receipt         GoodsReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  itemId          String
+  item            Item         @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  unitId          String
+  unit            Unit         @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  qty             Decimal      @db.Decimal(18,4)
+  unitCost        Decimal?     @db.Decimal(18,4)
+  note            String?      @db.Text
+  
+  // For loan return tracking
+  loanIssueLineId String?      // Reference ke GoodsIssueLine yang dipinjam
 
   @@index([receiptId])
   @@index([itemId])
+  @@index([loanIssueLineId])
 }
 
 // GoodsIssue (Barang Keluar) Model
 model GoodsIssue {
-  id          String    @id @default(cuid())
-  docNumber   String    @unique
-  date        DateTime
-  warehouseId String
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  purpose     String    // ISSUE|LOAN|PROD|SCRAP
-  targetDept  String?
-  pickerName  String?   // Nama pengambil barang
-  status      String    @default("APPROVED") // DRAFT|APPROVED|RETURNED|PARTIAL_RETURN|CANCELLED
-  note        String?   @db.Text
-  createdById String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              String    @id @default(cuid())
+  docNumber       String    @unique
+  date            DateTime
+  warehouseId     String
+  warehouse       Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  purpose         String    // ISSUE|LOAN|PROD|SCRAP
+  targetDept      String?
+  pickerName      String?   // Nama pengambil barang
+  status          String    @default("APPROVED") // DRAFT|APPROVED|RETURNED|PARTIAL_RETURN|CANCELLED
+  note            String?   @db.Text
+  
+  // Fields for loan tracking
+  loanReceiver    String?   // Nama peminjam (untuk LOAN)
+  expectedReturnAt DateTime? // Tanggal jatuh tempo pengembalian (untuk LOAN)
+  loanNotes       String?   @db.Text
+  isLoanFullyReturned Boolean @default(false)
+  
+  // Fields for accounting
+  expenseAccountId String?  // ID akun biaya spesifik (untuk ISSUE/SCRAP)
+  costCenter       String?  // Cost center untuk tracking
+  glStatus         String   @default("PENDING") // PENDING|POSTED|FAILED
+  glPostedAt       DateTime?
+  glEntryId        String?  // Reference ke JournalEntry
+  
+  createdById     String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   // Relations
-  lines       GoodsIssueLine[]
+  lines           GoodsIssueLine[]
 
   @@index([date])
   @@index([warehouseId])
   @@index([status])
+  @@index([purpose])
+  @@index([glStatus])
 }
 
 // GoodsIssueLine (Detail Barang Keluar) Model
@@ -815,7 +851,11 @@ model GoodsIssueLine {
   unitId    String
   unit      Unit       @relation(fields: [unitId], references: [id], onDelete: Restrict)
   qty       Decimal    @db.Decimal(18,4)
+  unitCost  Decimal?   @db.Decimal(18,4) // Snapshot biaya saat keluar (untuk audit)
   note      String?    @db.Text
+  
+  // For loan tracking
+  qtyReturned Decimal  @db.Decimal(18,4) @default(0) // Jumlah yang sudah dikembalikan
 
   @@index([issueId])
   @@index([itemId])
@@ -854,4 +894,55 @@ model ItemRequestLine {
 
   @@index([requestId])
   @@index([itemId])
+}
+
+// ============================================
+// GENERAL LEDGER MODELS - PT PKS
+// ============================================
+
+// JournalEntry Model - Header jurnal umum
+model JournalEntry {
+  id          String    @id @default(cuid())
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  entryNumber String    @unique // Nomor jurnal otomatis
+  date        DateTime
+  sourceType  String    // "GoodsIssue" | "GoodsReceipt" | "Purchase" | "Sales" | "Manual"
+  sourceId    String?   // ID dokumen sumber (GoodsIssue.id, GoodsReceipt.id, dll)
+  memo        String?   @db.Text
+  status      String    @default("POSTED") // DRAFT|POSTED|VOID
+  postedAt    DateTime? // null = draft; set saat benar2 posting
+  postedById  String?
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  lines       JournalLine[]
+
+  @@index([companyId, date])
+  @@index([sourceType, sourceId])
+  @@index([status])
+}
+
+// JournalLine Model - Detail baris jurnal
+model JournalLine {
+  id          String       @id @default(cuid())
+  entryId     String
+  entry       JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  accountId   String
+  account     Account      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  debit       Decimal      @db.Decimal(18,2) @default(0)
+  credit      Decimal      @db.Decimal(18,2) @default(0)
+  
+  // Optional metadata untuk reporting
+  costCenter  String?
+  dept        String?
+  itemId      String?
+  warehouseId String?
+  description String?      @db.Text
+
+  @@index([entryId])
+  @@index([accountId])
+  @@index([costCenter])
 }

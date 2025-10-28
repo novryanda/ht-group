@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "~/server/auth";
 import { WarehouseOutboundAPI } from "~/server/api/pt-pks/warehouse-outbound";
+import { getPTPKSCompany } from "~/server/lib/company-helpers";
 
 const api = new WarehouseOutboundAPI();
 
@@ -57,8 +58,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get PT PKS company ID
+    const company = await getPTPKSCompany();
+
     const body = await request.json();
-    const result = await api.create(body, session.user.id);
+    const result = await api.create(body, session.user.id, company.id);
 
     return NextResponse.json(result, { status: result.statusCode });
   } catch (error) {

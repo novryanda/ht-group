@@ -8,9 +8,11 @@ import {
   createWarehouseInboundSchema,
   createNewItemInboundSchema,
   warehouseInboundQuerySchema,
+  createLoanReturnSchema,
   type CreateWarehouseInboundInput,
   type CreateNewItemInboundInput,
   type WarehouseInboundQuery,
+  type CreateLoanReturnInput,
 } from "~/server/schemas/pt-pks/warehouse-transaction";
 import type { WarehouseInboundDTO } from "~/server/types/pt-pks/warehouse-transaction";
 
@@ -227,6 +229,60 @@ export class WarehouseInboundAPI {
       };
     } catch (error) {
       console.error("❌ Error in WarehouseInboundAPI.delete:", error);
+      return {
+        success: false,
+        error: "Terjadi kesalahan server",
+        statusCode: 500,
+      };
+    }
+  }
+
+  /**
+   * Process loan return
+   */
+  async processLoanReturn(
+    input: unknown,
+    createdById: string,
+    companyId: string
+  ): Promise<{
+    success: boolean;
+    data?: WarehouseInboundDTO;
+    error?: string;
+    details?: unknown;
+    statusCode: number;
+  }> {
+    try {
+      const validation = createLoanReturnSchema.safeParse(input);
+      if (!validation.success) {
+        return {
+          success: false,
+          error: "Data tidak valid",
+          details: validation.error.format(),
+          statusCode: 400,
+        };
+      }
+
+      const result = await this.service.processLoanReturn(
+        validation.data,
+        createdById,
+        companyId
+      );
+
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error,
+          statusCode: 400,
+        };
+      }
+
+      return {
+        success: true,
+        data: result.data,
+        statusCode: 201,
+      };
+    } catch (error) {
+      console.error("❌ Error in WarehouseInboundAPI.processLoanReturn:", error);
       return {
         success: false,
         error: "Terjadi kesalahan server",

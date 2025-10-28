@@ -5,10 +5,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { BarangKeluarList } from "./barang-keluar-list";
 import { BarangMasukList } from "./barang-masuk-list";
-import { Package, PackageOpen, FileText } from "lucide-react";
+import { Package, PackageOpen, FileText, ArrowLeftRight } from "lucide-react";
 
 export function TransaksiGudangDashboard() {
-  const [activeTab, setActiveTab] = useState("barang-keluar");
+  const [activeTab, setActiveTab] = useState("peminjaman");
 
   return (
     <div className="space-y-6">
@@ -21,6 +21,10 @@ export function TransaksiGudangDashboard() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
+          <TabsTrigger value="peminjaman" className="gap-2">
+            <ArrowLeftRight className="h-4 w-4" />
+            Peminjaman Barang
+          </TabsTrigger>
           <TabsTrigger value="barang-keluar" className="gap-2">
             <PackageOpen className="h-4 w-4" />
             Barang Keluar
@@ -35,16 +39,30 @@ export function TransaksiGudangDashboard() {
           </TabsTrigger>
         </TabsList>
 
+        <TabsContent value="peminjaman" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Peminjaman Barang</CardTitle>
+              <CardDescription>
+                Transaksi peminjaman barang ke divisi lain dengan tracking pengembalian
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BarangKeluarList defaultPurpose="LOAN" />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="barang-keluar" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Barang Keluar</CardTitle>
               <CardDescription>
-                Transaksi peminjaman dan pengeluaran barang ke divisi lain
+                Pengeluaran barang untuk produksi, maintenance, dan scrap
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <BarangKeluarList />
+              <BarangKeluarList defaultPurpose="ISSUE" />
             </CardContent>
           </Card>
         </TabsContent>

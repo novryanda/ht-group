@@ -7,9 +7,11 @@ import { db } from "~/server/db";
 import { WarehouseInboundRepo } from "~/server/repositories/pt-pks/warehouse-inbound.repo";
 import { WarehouseInboundMapper } from "~/server/mappers/pt-pks/warehouse-inbound.mapper";
 import { ItemRepo } from "~/server/repositories/pt-pks/item.repo";
+import { GLService } from "./gl.service";
 import type {
   CreateWarehouseInboundInput,
   CreateNewItemInboundInput,
+  CreateLoanReturnInput,
   WarehouseInboundQuery,
 } from "~/server/schemas/pt-pks/warehouse-transaction";
 import type { WarehouseInboundDTO } from "~/server/types/pt-pks/warehouse-transaction";
@@ -17,10 +19,12 @@ import type { WarehouseInboundDTO } from "~/server/types/pt-pks/warehouse-transa
 export class WarehouseInboundService {
   private repo: WarehouseInboundRepo;
   private itemRepo: ItemRepo;
+  private glService: GLService;
 
   constructor() {
     this.repo = new WarehouseInboundRepo();
     this.itemRepo = new ItemRepo();
+    this.glService = new GLService();
   }
 
   /**
@@ -425,6 +429,262 @@ export class WarehouseInboundService {
       return {
         success: false,
         error: error instanceof Error ? error.message : "Gagal menghapus transaksi",
+      };
+    }
+  }
+
+  /**
+   * Process loan return
+   */
+  async processLoanReturn(
+    input: CreateLoanReturnInput,
+    createdById: string,
+    companyId: string
+  ): Promise<{ success: boolean; data?: WarehouseInboundDTO; error?: string }> {
+    try {
+      // 1. Validate loan issue exists
+      const loanIssue = await db.goodsIssue.findUnique({
+        where: { id: input.loanIssueId },
+        include: {
+          lines: {
+            include: {
+              item: true,
+              unit: true,
+            },
+          },
+          warehouse: true,
+        },
+      });
+
+      if (!loanIssue) {
+        return { success: false, error: "Transaksi peminjaman tidak ditemukan" };
+      }
+
+      if (loanIssue.purpose !== "LOAN") {
+        return { success: false, error: "Transaksi ini bukan peminjaman" };
+      }
+
+      // 2. Validate warehouse
+      const warehouse = await db.warehouse.findUnique({
+        where: { id: input.warehouseId },
+      });
+
+      if (!warehouse) {
+        return { success: false, error: "Gudang tidak ditemukan" };
+      }
+
+      // 3. Validate return quantities
+      for (const returnLine of input.lines) {
+        const loanLine = loanIssue.lines.find((l) => l.id === returnLine.loanIssueLineId);
+        if (!loanLine) {
+          return {
+            success: false,
+            error: `Line peminjaman tidak ditemukan: ${returnLine.loanIssueLineId}`,
+          };
+        }
+
+        const qtyLoaned = Number(loanLine.qty);
+        const qtyAlreadyReturned = Number(loanLine.qtyReturned);
+        const qtyAvailableToReturn = qtyLoaned - qtyAlreadyReturned;
+
+        if (returnLine.qtyReturned > qtyAvailableToReturn) {
+          return {
+            success: false,
+            error: `Jumlah pengembalian ${loanLine.item.name} melebihi yang dipinjam (tersisa: ${qtyAvailableToReturn})`,
+          };
+        }
+      }
+
+      // 4. Generate document number
+      const docNumber = await this.repo.generateDocNumber(
+        warehouse.code,
+        new Date(input.date)
+      );
+
+      // 5. Process return in transaction
+      const result = await db.$transaction(async (tx) => {
+        let totalReturnValue = 0;
+        let totalLoanValue = 0;
+
+        // Create inbound document for loan return
+        const inbound = await this.repo.create(
+          {
+            docNumber,
+            date: new Date(input.date),
+            warehouse: { connect: { id: input.warehouseId } },
+            sourceType: "LOAN_RETURN",
+            sourceRef: loanIssue.docNumber,
+            loanIssueId: input.loanIssueId,
+            note: input.note,
+            glStatus: "PENDING",
+            createdById,
+          },
+          [] // Lines will be added separately
+        );
+
+        // Process each return line
+        for (const returnLine of input.lines) {
+          const loanLine = loanIssue.lines.find((l) => l.id === returnLine.loanIssueLineId);
+          if (!loanLine) continue;
+
+          const item = loanLine.item;
+          const unit = loanLine.unit;
+
+          // Convert to base unit
+          const qtyInBaseUnit = returnLine.qtyReturned * Number(unit.conversionToBase);
+          const unitCost = Number(loanLine.unitCost) || 0;
+          const lineValue = qtyInBaseUnit * unitCost;
+          totalReturnValue += lineValue;
+
+          // Calculate total loan value for this line
+          const loanedQtyInBaseUnit = Number(loanLine.qty) * Number(unit.conversionToBase);
+          totalLoanValue += loanedQtyInBaseUnit * unitCost;
+
+          // Create inbound line
+          await tx.goodsReceiptLine.create({
+            data: {
+              receiptId: inbound.id,
+              itemId: item.id,
+              unitId: unit.id,
+              qty: returnLine.qtyReturned,
+              unitCost,
+              loanIssueLineId: returnLine.loanIssueLineId,
+              note: returnLine.note,
+            },
+          });
+
+          // Update loan line qtyReturned
+          const newQtyReturned = Number(loanLine.qtyReturned) + returnLine.qtyReturned;
+          await tx.goodsIssueLine.update({
+            where: { id: returnLine.loanIssueLineId },
+            data: { qtyReturned: newQtyReturned },
+          });
+
+          // Update stock balance
+          const stockBalance = await tx.stockBalance.findFirst({
+            where: {
+              itemId: item.id,
+              warehouseId: input.warehouseId,
+            },
+          });
+
+          if (stockBalance) {
+            const newQty = Number(stockBalance.qtyOnHand) + qtyInBaseUnit;
+            await tx.stockBalance.update({
+              where: { id: stockBalance.id },
+              data: { qtyOnHand: newQty },
+            });
+          } else {
+            await tx.stockBalance.create({
+              data: {
+                itemId: item.id,
+                warehouseId: input.warehouseId,
+                qtyOnHand: qtyInBaseUnit,
+                avgCost: unitCost,
+              },
+            });
+          }
+
+          // Create stock ledger entry
+          await tx.stockLedger.create({
+            data: {
+              itemId: item.id,
+              warehouseId: input.warehouseId,
+              referenceType: "IN",
+              referenceId: inbound.id,
+              qtyDelta: qtyInBaseUnit,
+              unitCost,
+              note: `Pengembalian barang pinjaman: ${loanIssue.docNumber}`,
+              createdById,
+            },
+          });
+        }
+
+        // Calculate loss value (items not returned)
+        const totalLossValue = totalLoanValue - totalReturnValue;
+
+        // Update loan issue status
+        const allLinesReturned = loanIssue.lines.every((line) => {
+          const returnLine = input.lines.find((r) => r.loanIssueLineId === line.id);
+          const newQtyReturned = Number(line.qtyReturned) + (returnLine?.qtyReturned || 0);
+          return newQtyReturned >= Number(line.qty);
+        });
+
+        if (allLinesReturned) {
+          await tx.goodsIssue.update({
+            where: { id: input.loanIssueId },
+            data: {
+              status: "RETURNED",
+              isLoanFullyReturned: true,
+            },
+          });
+        } else {
+          await tx.goodsIssue.update({
+            where: { id: input.loanIssueId },
+            data: {
+              status: "PARTIAL_RETURN",
+            },
+          });
+        }
+
+        // Post GL for loan return
+        try {
+          const glLines = await this.glService.buildLoanReturnGLLines({
+            companyId,
+            returnValue: totalReturnValue,
+            lossValue: totalLossValue > 0 ? totalLossValue : 0,
+            warehouseId: input.warehouseId,
+          });
+
+          const glResult = await this.glService.postJournalEntry(
+            {
+              companyId,
+              date: new Date(input.date),
+              sourceType: "GoodsReceipt",
+              sourceId: inbound.id,
+              sourceNumber: docNumber,
+              memo: `Pengembalian barang pinjaman dari ${loanIssue.docNumber}`,
+              createdById,
+            },
+            glLines
+          );
+
+          if (glResult.success) {
+            await tx.goodsReceipt.update({
+              where: { id: inbound.id },
+              data: {
+                glStatus: "POSTED",
+                glPostedAt: new Date(),
+                glEntryId: glResult.journalEntryId,
+              },
+            });
+          } else {
+            console.error("❌ GL posting failed:", glResult.error);
+            await tx.goodsReceipt.update({
+              where: { id: inbound.id },
+              data: { glStatus: "FAILED" },
+            });
+          }
+        } catch (glError) {
+          console.error("❌ GL posting error:", glError);
+          await tx.goodsReceipt.update({
+            where: { id: inbound.id },
+            data: { glStatus: "FAILED" },
+          });
+        }
+
+        return inbound;
+      });
+
+      return {
+        success: true,
+        data: WarehouseInboundMapper.toDTO(result),
+      };
+    } catch (error) {
+      console.error("Error processing loan return:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Gagal memproses pengembalian",
       };
     }
   }

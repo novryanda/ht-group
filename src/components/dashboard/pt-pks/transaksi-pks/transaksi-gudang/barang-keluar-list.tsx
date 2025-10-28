@@ -13,9 +13,9 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { Badge } from "~/components/ui/badge";
-import { Plus, Search, Eye, Pencil, Trash2, Loader2, PackagePlus, FileDown } from "lucide-react";
+import { Plus, Search, Eye, Pencil, Trash2, Loader2, FileDown, RotateCcw } from "lucide-react";
 import { BarangKeluarFormDialog } from "./barang-keluar-form-dialog";
-import { BarangMasukFormDialog } from "./barang-masuk-form-dialog";
+import { LoanReturnDialog } from "./loan-return-dialog";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 
@@ -36,22 +36,26 @@ interface WarehouseOutbound {
   }>;
 }
 
-export function BarangKeluarList() {
+interface BarangKeluarListProps {
+  defaultPurpose?: "LOAN" | "ISSUE" | "PROD" | "SCRAP";
+}
+
+export function BarangKeluarList({ defaultPurpose }: BarangKeluarListProps) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [showReturnDialog, setShowReturnDialog] = useState(false);
-  const [returnOutboundId, setReturnOutboundId] = useState<string>("");
+  const [showLoanReturnDialog, setShowLoanReturnDialog] = useState(false);
 
   // Fetch data
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["warehouse-outbound", page, search],
+    queryKey: ["warehouse-outbound", page, search, defaultPurpose],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: "10",
         ...(search && { search }),
+        ...(defaultPurpose && { purpose: defaultPurpose }),
       });
 
       const res = await fetch(`/api/pt-pks/transaksi-gudang/barang-keluar?${params}`);
@@ -70,9 +74,8 @@ export function BarangKeluarList() {
     setShowForm(true);
   };
 
-  const handleReturn = (outbound: WarehouseOutbound) => {
-    setReturnOutboundId(outbound.id);
-    setShowReturnDialog(true);
+  const handleOpenLoanReturn = () => {
+    setShowLoanReturnDialog(true);
   };
 
   const handleDownloadPDF = async (id: string, docNumber: string) => {
@@ -144,10 +147,16 @@ export function BarangKeluarList() {
             />
           </div>
         </div>
-        <Button onClick={handleCreate} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Barang Keluar
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleOpenLoanReturn} variant="outline" className="gap-2">
+            <RotateCcw className="h-4 w-4" />
+            Pengembalian Pinjaman
+          </Button>
+          <Button onClick={handleCreate} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Barang Keluar
+          </Button>
+        </div>
       </div>
 
       {/* Table */}
@@ -213,17 +222,6 @@ export function BarangKeluarList() {
                         <FileDown className="h-3.5 w-3.5" />
                         PDF
                       </Button>
-                      {item.status !== "RETURNED" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleReturn(item)}
-                          className="gap-1 text-blue-600 hover:text-blue-700"
-                        >
-                          <PackagePlus className="h-3.5 w-3.5" />
-                          Kembalikan
-                        </Button>
-                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -266,18 +264,18 @@ export function BarangKeluarList() {
         open={showForm}
         onOpenChange={setShowForm}
         outboundId={selectedId}
+        defaultPurpose={defaultPurpose}
         onSuccess={() => {
           setShowForm(false);
           void refetch();
         }}
       />
 
-      <BarangMasukFormDialog
-        open={showReturnDialog}
-        onOpenChange={setShowReturnDialog}
-        outboundId={returnOutboundId}
+      <LoanReturnDialog
+        open={showLoanReturnDialog}
+        onOpenChange={setShowLoanReturnDialog}
         onSuccess={() => {
-          setShowReturnDialog(false);
+          setShowLoanReturnDialog(false);
           void refetch();
         }}
       />
