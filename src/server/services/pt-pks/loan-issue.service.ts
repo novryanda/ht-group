@@ -210,13 +210,19 @@ export class LoanIssueService {
         glStatus: "PENDING",
         createdById,
         lines: {
-          create: data.lines.map((line) => ({
-            itemId: line.itemId,
-            unitId: line.itemId, // Will be fetched from issue line
-            qty: line.qtyReturned,
-            note: line.note,
-            loanIssueLineId: line.loanIssueLineId,
-          })),
+          create: data.lines.map((line) => {
+            // Get unitId from the original issue line
+            const issueLine = loanIssue.lines.find(
+              (l: any) => l.id === line.loanIssueLineId
+            );
+            return {
+              itemId: line.itemId,
+              unitId: issueLine?.unitId || line.itemId, // Fallback to itemId if not found
+              qty: line.qtyReturned,
+              note: line.note,
+              loanIssueLineId: line.loanIssueLineId,
+            };
+          }),
         },
       },
       include: {

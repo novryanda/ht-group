@@ -43,6 +43,11 @@ const loanReturnSchema = z.object({
   ).min(1),
 });
 
+const fullLoanReturnSchema = z.object({
+  returnedAt: z.string(),
+  returnNote: z.string().optional(),
+});
+
 export class LoanIssueAPI {
   /**
    * List loan issues
@@ -166,6 +171,60 @@ export class LoanIssueAPI {
       return {
         success: false,
         error: error instanceof Error ? error.message : "Failed to process return",
+        statusCode: 500,
+      };
+    }
+  }
+
+  /**
+   * Process full loan return (return all items)
+   */
+  static async processFullReturn(loanIssueId: string, data: unknown, createdById: string) {
+    try {
+      const validatedData = fullLoanReturnSchema.parse(data);
+
+      // Get loan issue details
+      const loanIssue = await LoanIssueService.getById(loanIssueId);
+      if (!loanIssue) {
+        return {
+          success: false,
+          error: "Loan issue not found",
+          statusCode: 404,
+        };
+      }
+
+      // Prepare return data for all lines
+      const returnData: LoanReturnDTO = {
+        loanIssueId,
+        date: validatedData.returnedAt,
+        warehouseId: loanIssue.warehouseId,
+        note: validatedData.returnNote,
+        lines: loanIssue.lines.map((line: any) => ({
+          loanIssueLineId: line.id,
+          itemId: line.itemId,
+          qtyReturned: Number(line.qty) - Number(line.qtyReturned || 0), // Return remaining qty
+          note: validatedData.returnNote,
+        })),
+      };
+
+      const result = await LoanIssueService.processReturn(returnData, createdById);
+      return {
+        success: true,
+        data: result,
+        statusCode: 200,
+      };
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return {
+          success: false,
+          error: "Validation error",
+          details: error.issues,
+          statusCode: 400,
+        };
+      }
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to process full return",
         statusCode: 500,
       };
     }

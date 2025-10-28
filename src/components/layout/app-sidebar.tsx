@@ -264,13 +264,14 @@ const ptNavigationData: Record<string, PTNavigationData> = {
           { title: "Transportir", url: "/dashboard/pt-pks/datamaster/transportir", icon: Truck },
           { title: "Material & Inventory", url: "/dashboard/pt-pks/datamaster/material-inventory", icon: Package },
           { title: "Karyawan", url: "/dashboard/pt-pks/datamaster/karyawan", icon: User },
-          { title: "Daftar Akun", url: "/dashboard/pt-pks/datamaster/daftar-akun", icon: ClipboardMinus },
         ],
       },
       {
         title: "Finance",
         icon: Calculator,
         items: [
+          
+          { title: "Daftar Akun", url: "/dashboard/pt-pks/datamaster/daftar-akun", icon: ClipboardMinus },
           { title: "Periode Fiskal", url: "/dashboard/pt-pks/finance/periode-fiskal", icon: Calendar },
           { title: "Saldo Awal Akun", url: "/dashboard/pt-pks/finance/saldo-awal-akun", icon: Receipt },
           { title: "Jurnal Umum", url: "/dashboard/pt-pks/laporan/keuangan/jurnal-umum", icon: FileText },
@@ -280,10 +281,9 @@ const ptNavigationData: Record<string, PTNavigationData> = {
         ],
       },
       {
-        title: "Supplier & Timbangan",
+        title: "Timbangan",
         icon: Scale,
         items: [
-          { title: "Supplier", url: "/dashboard/pt-pks/supplier-timbangan/supplier", icon: UserPlus },
           { title: "Timbangan", url: "/dashboard/pt-pks/supplier-timbangan/timbangan", icon: Truck },
         ] 
       },
