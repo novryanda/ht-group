@@ -164,7 +164,7 @@ export interface SupplierLookupDTO {
   namaPerusahaan: string | null;
   typeSupplier: string;
   pajakPKP: string;
-  lokasiKebun: string | null;
+  alamatRampPeron: string | null;
   bankName: string | null;
   bankAccountNo: string | null;
   bankAccountName: string | null;

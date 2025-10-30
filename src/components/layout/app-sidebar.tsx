@@ -94,6 +94,7 @@ import {
   ArrowLeftRightIcon,
   BookOpen,
   TrendingUp,
+  Check,
 } from "lucide-react";
 
 // Define types for navigation
@@ -267,6 +268,12 @@ const ptNavigationData: Record<string, PTNavigationData> = {
           { title: "Karyawan", url: "/dashboard/pt-pks/datamaster/karyawan", icon: User },
         ],
       },
+      {title: "Payroll", 
+        icon: Users, 
+        items: [
+        { title: "Payroll", url: "/dashboard/pt-pks/payroll", icon: Users },
+        
+      ]},
       {
         title: "Finance",
         icon: Calculator,
@@ -287,6 +294,7 @@ const ptNavigationData: Record<string, PTNavigationData> = {
         items: [
           { title: "Timbangan", url: "/dashboard/pt-pks/timbangan-supplier/timbangan", icon: Truck },
           { title: "PB", url: "/dashboard/pt-pks/timbangan-supplier/pb-harian", icon: Clipboard },
+          { title: "Approve PB", url: "/dashboard/pt-pks/timbangan-supplier/approve-pb", icon: Check}
         ] 
       },
       {
@@ -302,7 +310,6 @@ const ptNavigationData: Record<string, PTNavigationData> = {
         title: "Laporan",
         icon: BarChart3,
         items: [
-          { title: "Laporan Mutu Produksi", url: "/dashboard/pt-pks/laporan/laporan-mutu-produksi", icon: FileText },
           { title: "Laporan Produksi", url: "/dashboard/pt-pks/laporan/laporan-produksi", icon: Scale },
         ],
       },

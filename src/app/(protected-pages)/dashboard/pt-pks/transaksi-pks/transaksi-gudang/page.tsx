@@ -9,14 +9,14 @@ import { BarangMasukList } from "~/components/dashboard/pt-pks/transaksi-pks/tra
 import { PermintaanBarangList } from "~/components/dashboard/pt-pks/transaksi-pks/transaksi-gudang/permintaan-barang/permintaan-barang-list";
 
 export default function TransaksiGudangPage() {
-  const [activeTab, setActiveTab] = useState("peminjaman");
+  const [activeTab, setActiveTab] = useState("keluar");
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Transaksi Gudang</h1>
         <p className="text-muted-foreground">
-          Kelola transaksi gudang: peminjaman, barang masuk/keluar, dan permintaan barang
+          Kelola transaksi gudang: barang keluar/masuk, dan permintaan barang
         </p>
       </div>
 

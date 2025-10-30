@@ -179,14 +179,20 @@ export class WeighbridgeRepository {
    */
   static async generateNoSeri(companyId: string, tanggal: Date): Promise<string> {
     const dateStr = tanggal.toISOString().split("T")[0]?.replace(/-/g, "") ?? "";
-    
+
+    // Create start and end of day (immutable)
+    const startOfDay = new Date(tanggal);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(tanggal);
+    endOfDay.setHours(23, 59, 59, 999);
+
     // Find last ticket for the date
     const lastTicket = await db.weighbridgeTicket.findFirst({
       where: {
         companyId,
         tanggal: {
-          gte: new Date(tanggal.setHours(0, 0, 0, 0)),
-          lt: new Date(tanggal.setHours(23, 59, 59, 999)),
+          gte: startOfDay,
+          lt: endOfDay,
         },
       },
       orderBy: { noSeri: "desc" },

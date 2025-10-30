@@ -52,7 +52,12 @@ export const weighbridgeQuerySchema = z.object({
   supplierId: z.string().optional(),
   vehicleId: z.string().optional(),
   itemId: z.string().optional(),
-  status: z.enum(["DRAFT", "APPROVED", "POSTED"]).optional(),
+  status: z.union([
+    z.enum(["DRAFT", "APPROVED", "POSTED"]),
+    z.literal(""),
+    z.null(),
+    z.undefined()
+  ]).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });

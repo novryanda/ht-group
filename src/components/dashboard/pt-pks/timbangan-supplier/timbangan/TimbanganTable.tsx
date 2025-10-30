@@ -6,9 +6,10 @@
  */
 
 import { useState, useEffect } from "react";
-import { Save, RefreshCw, Filter, CheckCircle2 } from "lucide-react";
+import { Save, RefreshCw, CheckCircle2, CalendarIcon, Download } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import * as XLSX from "xlsx";
 import {
   Select,
   SelectContent,
@@ -26,35 +27,69 @@ import {
 } from "~/components/ui/table";
 import { Badge } from "~/components/ui/badge";
 import { Alert, AlertDescription } from "~/components/ui/alert";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "~/components/ui/popover";
+import { Calendar } from "~/components/ui/calendar";
+import { format } from "date-fns";
 import { toast } from "sonner";
-import { formatCurrency } from "~/lib/utils";
+import { formatCurrency, cn } from "~/lib/utils";
 
+// Sesuaikan dengan WeighbridgeTicketDTO
 interface Ticket {
   id: string;
+  companyId: string;
   noSeri: string;
+  vehicleId: string;
+  supplierId: string;
+  itemId: string;
   tanggal: string;
+  jamMasuk: string;
+  jamKeluar: string | null;
+  timbang1: number;
+  timbang2: number;
+  netto1: number;
+  potPercent: number;
+  potKg: number;
   beratTerima: number;
-  status: "DRAFT" | "APPROVED" | "POSTED";
-  supplier?: {
-    namaPemilik: string;
-    bankName: string | null;
-    bankAccountNo: string | null;
-  };
-  item?: {
-    name: string;
-  };
-  vehicle?: {
-    plateNo: string;
-  };
-  // Editable pricing fields
+  lokasiKebun: string | null;
+  penimbang: string | null;
   hargaPerKg: number;
   pphRate: number;
   upahBongkarPerKg: number;
-  // Calculated fields
   total: number;
   totalPph: number;
   totalUpahBongkar: number;
   totalPembayaranSupplier: number;
+  status: "DRAFT" | "APPROVED" | "POSTED";
+  purchaseJeId: string | null;
+  unloadJeId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdById: string;
+  vehicle?: {
+    id: string;
+    plateNo: string;
+    type: string;
+    capacityTons: number | null;
+  };
+  supplier?: {
+    id: string;
+    namaPemilik: string;
+    namaPerusahaan: string | null;
+    alamatRampPeron: string | null;
+    lokasiKebun: string | null;
+    bankName: string | null;
+    bankAccountNo: string | null;
+    bankAccountName: string | null;
+  };
+  item?: {
+    id: string;
+    sku: string;
+    name: string;
+  };
 }
 
 interface EditState {
@@ -76,8 +111,8 @@ export function TimbanganTable({ companyId }: { companyId: string }) {
   const [saving, setSaving] = useState<string | null>(null);
   
   // Filters
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState<Date>();
+  const [endDate, setEndDate] = useState<Date>();
   const [statusFilter, setStatusFilter] = useState<string>("DRAFT");
 
   // Fetch tickets
@@ -89,8 +124,8 @@ export function TimbanganTable({ companyId }: { companyId: string }) {
     setLoading(true);
     try {
       const params = new URLSearchParams({ companyId });
-      if (startDate) params.set("startDate", startDate);
-      if (endDate) params.set("endDate", endDate);
+      if (startDate) params.set("startDate", format(startDate, "yyyy-MM-dd"));
+      if (endDate) params.set("endDate", format(endDate, "yyyy-MM-dd"));
       if (statusFilter && statusFilter !== "ALL") {
         params.set("status", statusFilter);
       }
@@ -196,6 +231,106 @@ export function TimbanganTable({ companyId }: { companyId: string }) {
     }
   };
 
+  const exportToExcel = () => {
+    if (tickets.length === 0) {
+      toast.error("Tidak ada data untuk diexport");
+      return;
+    }
+
+    // Prepare data for export - ALL columns from database
+    const exportData = tickets.map((ticket) => {
+      const state = editState[ticket.id];
+      return {
+        "No. Seri": ticket.noSeri,
+        "Plat Nomor": ticket.vehicle?.plateNo ?? "-",
+        "Nama Relasi": ticket.supplier?.namaPemilik ?? "-",
+        "Produk": ticket.item?.name ?? "-",
+        "Berat Timbang": ticket.timbang1 ?? 0,
+        "Berat Timbang 2": ticket.timbang2 ?? 0,
+        "Netto1": ticket.netto1 ?? 0,
+        "Berat Pot (%)": ticket.potPercent ?? 0,
+        "Berat Pot (kg)": ticket.potKg ?? 0,
+        "Berat Terima": ticket.beratTerima ?? 0,
+        "Tanggal": ticket.tanggal,
+        "Jam Masuk": new Date(ticket.jamMasuk).toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' }),
+        "Jam Keluar": ticket.jamKeluar ? new Date(ticket.jamKeluar).toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' }) : "-",
+        "LOKASI KEBUN": ticket.lokasiKebun ?? "-",
+        "NAMA": ticket.supplier?.namaPemilik ?? "-",
+        "BANK": ticket.supplier?.bankName ?? "-",
+        "NO. REKENING": ticket.supplier?.bankAccountNo ?? "-",
+        "Penimbang": ticket.penimbang ?? "-",
+        "Harga Per Kg": state ? parseFloat(state.hargaPerKg) : 0,
+        "PPh %": state ? parseFloat(state.pphRate) : 0,
+        "Upah Bongkar Per Kg": state ? parseFloat(state.upahBongkarPerKg) : 0,
+        "Total": state ? parseFloat(state.total) : 0,
+        "Total PPh": state ? parseFloat(state.totalPph) : 0,
+        "Total Upah Bongkar": state ? parseFloat(state.totalUpahBongkar) : 0,
+        "Pembayaran Supplier": state ? parseFloat(state.totalPembayaranSupplier) : 0,
+        "Status": ticket.status,
+      };
+    });
+
+    // Calculate totals
+    const totals = {
+      "No. Seri": "TOTAL",
+      "Plat Nomor": "",
+      "Nama Relasi": "",
+      "Produk": "",
+      "Berat Timbang": exportData.reduce((sum, row) => sum + (Number(row["Berat Timbang"]) || 0), 0),
+      "Berat Timbang 2": exportData.reduce((sum, row) => sum + (Number(row["Berat Timbang 2"]) || 0), 0),
+      "Netto1": exportData.reduce((sum, row) => sum + (Number(row["Netto1"]) || 0), 0),
+      "Berat Pot (%)": "",
+      "Berat Pot (kg)": exportData.reduce((sum, row) => sum + (Number(row["Berat Pot (kg)"]) || 0), 0),
+      "Berat Terima": exportData.reduce((sum, row) => sum + (Number(row["Berat Terima"]) || 0), 0),
+      "Tanggal": "",
+      "Jam Masuk": "",
+      "Jam Keluar": "",
+      "LOKASI KEBUN": "",
+      "NAMA": "",
+      "BANK": "",
+      "NO. REKENING": "",
+      "Penimbang": "",
+      "Harga Per Kg": "",
+      "PPh %": "",
+      "Upah Bongkar Per Kg": "",
+      "Total": exportData.reduce((sum, row) => sum + (Number(row["Total"]) || 0), 0),
+      "Total PPh": exportData.reduce((sum, row) => sum + (Number(row["Total PPh"]) || 0), 0),
+      "Total Upah Bongkar": exportData.reduce((sum, row) => sum + (Number(row["Total Upah Bongkar"]) || 0), 0),
+      "Pembayaran Supplier": exportData.reduce((sum, row) => sum + (Number(row["Pembayaran Supplier"]) || 0), 0),
+      "Status": "",
+    };
+
+    // Add totals row
+    const dataWithTotals = [...exportData, totals];
+
+    // Create worksheet
+    const worksheet = XLSX.utils.json_to_sheet(dataWithTotals);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Timbangan");
+
+    // Auto-size columns
+    const maxWidth = Object.keys(exportData[0] ?? {}).map((key) => {
+      const maxLen = Math.max(
+        key.length,
+        ...dataWithTotals.map((row) => String(row[key as keyof typeof row] ?? "").length)
+      );
+      return { wch: Math.min(maxLen + 2, 20) };
+    });
+    worksheet["!cols"] = maxWidth;
+
+    // Style the total row (last row) - make it bold
+    const lastRowIndex = exportData.length + 1; // +1 for header
+    const range = XLSX.utils.decode_range(worksheet['!ref'] ?? 'A1');
+    
+    // Generate filename with date and status filter
+    const today = new Date().toISOString().split("T")[0];
+    const statusSuffix = statusFilter !== "ALL" ? `-${statusFilter.toLowerCase()}` : "";
+    const filename = `timbangan${statusSuffix}-${today}.xlsx`;
+
+    XLSX.writeFile(workbook, filename);
+    toast.success(`Data berhasil diexport! (${tickets.length} rows + Total)`);
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "DRAFT":
@@ -221,46 +356,84 @@ export function TimbanganTable({ companyId }: { companyId: string }) {
     <div className="space-y-4">
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-4">
-        <div className="flex-1 space-y-2">
+        <div className="space-y-2">
           <label className="text-sm font-medium">Tanggal Mulai</label>
-          <Input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-[180px] justify-start text-left font-normal">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {startDate ? format(startDate, "dd/MM/yyyy") : "Pilih tanggal"}
+            </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={startDate}
+                onSelect={setStartDate}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
         </div>
-        <div className="flex-1 space-y-2">
+
+        <div className="space-y-2">
           <label className="text-sm font-medium">Tanggal Akhir</label>
-          <Input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
-        </div>
-        <div className="flex-1 space-y-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-[180px] justify-start text-left font-normal">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {endDate ? format(endDate, "dd/MM/yyyy") : "Pilih tanggal"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={endDate}
+                onSelect={setEndDate}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+            </div>
+
+        <div className="space-y-2">
           <label className="text-sm font-medium">Status</label>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger>
+            <SelectTrigger className="w-[180px]">
               <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
+              </SelectTrigger>
+              <SelectContent>
               <SelectItem value="ALL">Semua</SelectItem>
-              <SelectItem value="DRAFT">Draft</SelectItem>
-              <SelectItem value="APPROVED">Approved</SelectItem>
-              <SelectItem value="POSTED">Posted</SelectItem>
-            </SelectContent>
-          </Select>
+                <SelectItem value="DRAFT">Draft</SelectItem>
+                <SelectItem value="APPROVED">Approved</SelectItem>
+                <SelectItem value="POSTED">Posted</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium opacity-0">Action</label>
+          <div className="flex gap-2">
+            <Button onClick={fetchTickets} variant="outline">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+            <Button 
+              onClick={exportToExcel} 
+              variant="outline"
+              disabled={tickets.length === 0}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export Excel
+            </Button>
+          </div>
         </div>
-        <Button onClick={fetchTickets} variant="outline">
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
-      </div>
+              </div>
 
       {/* Table */}
       <div className="overflow-x-auto rounded-md border">
-        <Table>
-          <TableHeader>
+              <Table>
+                <TableHeader>
             <TableRow>
               <TableHead className="w-[120px]">No. Seri</TableHead>
               <TableHead className="w-[110px]">Tanggal</TableHead>
@@ -277,16 +450,16 @@ export function TimbanganTable({ companyId }: { companyId: string }) {
               <TableHead className="w-[160px] text-right">Pembayaran Supplier</TableHead>
               <TableHead className="w-[100px]">Status</TableHead>
               <TableHead className="w-[100px]">Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
             {tickets.length === 0 ? (
-              <TableRow>
+                    <TableRow>
                 <TableCell colSpan={15} className="text-center text-muted-foreground">
                   Tidak ada data tiket. Buat tiket di menu PB Harian terlebih dahulu.
-                </TableCell>
-              </TableRow>
-            ) : (
+                      </TableCell>
+                    </TableRow>
+                  ) : (
               tickets.map((ticket) => {
                 const state = editState[ticket.id];
                 if (!state) return null;
@@ -388,14 +561,14 @@ export function TimbanganTable({ companyId }: { companyId: string }) {
                       {ticket.status === "POSTED" && (
                         <CheckCircle2 className="h-5 w-5 text-green-600" />
                       )}
-                    </TableCell>
-                  </TableRow>
+                          </TableCell>
+                      </TableRow>
                 );
               })
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
 
       {/* Summary */}
       {tickets.length > 0 && (
@@ -404,7 +577,7 @@ export function TimbanganTable({ companyId }: { companyId: string }) {
             <div className="flex justify-between text-sm">
               <span>Total Tiket:</span>
               <span className="font-semibold">{tickets.length}</span>
-            </div>
+                </div>
             <div className="flex justify-between text-sm">
               <span>Total Berat:</span>
               <span className="font-semibold">

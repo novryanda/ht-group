@@ -147,21 +147,13 @@ export class WeighbridgeMapper {
   static toSupplierLookup = (
   supplier: SupplierTBS
   ): SupplierLookupDTO => {
-    let lokasiKebun: string | null = null;
-    if (supplier.profilKebun && typeof supplier.profilKebun === "object") {
-      const profil = supplier.profilKebun as Record<string, unknown>;
-      if (profil.lokasi && typeof profil.lokasi === "string") {
-        lokasiKebun = profil.lokasi;
-      }
-    }
-
     return {
       id: supplier.id,
       namaPemilik: supplier.namaPemilik,
       namaPerusahaan: supplier.namaPerusahaan ?? null,
       typeSupplier: supplier.typeSupplier,
       pajakPKP: supplier.pajakPKP,
-      lokasiKebun,
+      alamatRampPeron: supplier.alamatRampPeron ?? null,
       bankName: supplier.bankName ?? null,
       bankAccountNo: supplier.bankAccountNo ?? null,
       bankAccountName: supplier.bankAccountName ?? null,
