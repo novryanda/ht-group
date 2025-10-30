@@ -158,7 +158,7 @@ export function keyToPrettyLabel(key: string): string {
 
 // 6) Helper untuk unit/format bila mau dipakai di UI
 export function guessUnit(key: string): "percent" | "number" | "text" {
-  if (/_komentar$/.test(key)) return "text";
+  if (key.endsWith("_komentar")) return "text";
   // field yang mengandung persen
   if (/(^|_)(oer|ker|ffa|moisture|dirt|broken_kernel)(_|$)/.test(key)) return "percent";
   return "number";

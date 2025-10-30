@@ -38,7 +38,8 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { AnimatedThemeToggler } from "~/components/ui/animated-theme-toggler";
 import { useEffect, useState, useRef, forwardRef } from "react";
-// ThemeDropdownMenuItem component for theme toggling with label
+
+
 const ThemeDropdownMenuItem = () => {
   const [isDark, setIsDark] = useState(false);
   const togglerRef = useRef<HTMLButtonElement>(null);
@@ -284,7 +285,8 @@ const ptNavigationData: Record<string, PTNavigationData> = {
         title: "Timbangan",
         icon: Scale,
         items: [
-          { title: "Timbangan", url: "/dashboard/pt-pks/supplier-timbangan/timbangan", icon: Truck },
+          { title: "Timbangan", url: "/dashboard/pt-pks/timbangan-supplier/timbangan", icon: Truck },
+          { title: "PB", url: "/dashboard/pt-pks/timbangan-supplier/pb-harian", icon: Clipboard },
         ] 
       },
       {
@@ -292,9 +294,8 @@ const ptNavigationData: Record<string, PTNavigationData> = {
         icon: ArrowLeftRightIcon,
         items: [
           { title: "Transaksi Gudang", url: "/dashboard/pt-pks/transaksi-pks/transaksi-gudang", icon: Package },
-          { title: "PB Harian", url: "/dashboard/pt-pks/transaksipks/pb-harian", icon: FileText },
-          { title: "Permintaan Dana", url: "/dashboard/pt-pks/transaksipks/permintaan-dana", icon: Calculator },
-          { title: "Pembayaran Produksi Harian", url: "/dashboard/pt-pks/transaksipks/produksi-harian", icon: Receipt },
+          { title: "Permintaan Dana", url: "/dashboard/pt-pks/transaksi-pks/permintaan-dana", icon: Calculator },
+          { title: "Pembayaran Produksi Harian", url: "/dashboard/pt-pks/transaksi-pks/produksi-harian", icon: Receipt },
         ],
       },
       {

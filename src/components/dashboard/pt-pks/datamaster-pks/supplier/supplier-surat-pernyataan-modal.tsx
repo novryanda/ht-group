@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -9,6 +9,7 @@ import { Input } from "~/components/ui/input";
 import { Card, CardContent } from "~/components/ui/card";
 import { FileText, Printer, X, Download } from "lucide-react";
 import { type Supplier } from "~/server/types/pt-pks/supplier";
+import { SupplierApiClient } from "~/lib/supplier-utils";
 
 const suratPernyataanSchema = z.object({
   bank: z.string().min(1, "Nama bank wajib diisi"),
@@ -32,11 +33,22 @@ export function SupplierSuratPernyataanModal({ supplier, isOpen, onClose, onSucc
   const form = useForm<SuratPernyataanFormData>({
     resolver: zodResolver(suratPernyataanSchema),
     defaultValues: {
-      bank: "",
-      nomorRekening: "",
-      atasNama: "",
+      bank: supplier?.bankName ?? "",
+      nomorRekening: supplier?.bankAccountNo ?? "",
+      atasNama: supplier?.bankAccountName ?? "",
     }
   });
+
+  // Reset form when supplier changes
+  useEffect(() => {
+    if (supplier) {
+      form.reset({
+        bank: supplier.bankName ?? "",
+        nomorRekening: supplier.bankAccountNo ?? "",
+        atasNama: supplier.bankAccountName ?? "",
+      });
+    }
+  }, [supplier, form]);
 
   const onSubmit = (data: SuratPernyataanFormData) => {
     setShowPreview(true);
@@ -50,6 +62,17 @@ export function SupplierSuratPernyataanModal({ supplier, isOpen, onClose, onSucc
       const { SuratPernyataanPDF } = await import('./surat-pernyataan-pdf');
 
       const formData = form.getValues();
+
+      // Save bank info to database first using API client
+      const result = await SupplierApiClient.updateBankInfo(supplier!.id, {
+        bankName: formData.bank,
+        bankAccountNo: formData.nomorRekening,
+        bankAccountName: formData.atasNama,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Gagal menyimpan informasi bank');
+      }
 
       // Generate PDF blob
       const blob = await pdf(
@@ -66,9 +89,15 @@ export function SupplierSuratPernyataanModal({ supplier, isOpen, onClose, onSucc
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
+      // Show success message
+      alert("PDF berhasil diunduh dan informasi bank berhasil disimpan!");
+      
+      // Call onSuccess to refresh data
+      onSuccess();
+
     } catch (error) {
       console.error("Error generating PDF:", error);
-      alert("Terjadi kesalahan saat membuat PDF");
+      alert(error instanceof Error ? error.message : "Terjadi kesalahan saat membuat PDF atau menyimpan data bank");
     } finally {
       setIsGeneratingPDF(false);
     }

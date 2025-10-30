@@ -4,6 +4,9 @@ import { z } from "zod";
 // BARANG KELUAR (OUTBOUND) SCHEMAS
 // ============================================
 
+const outboundPurposeEnum = z.enum(["ISSUE", "PROD", "SCRAP", "LOAN", "TRANSFER"]);
+const outboundStatusEnum = z.enum(["DRAFT", "APPROVED", "POSTED", "CANCELLED"]);
+
 export const warehouseOutboundLineSchema = z.object({
   itemId: z.string().min(1, "Barang wajib dipilih"),
   unitId: z.string().min(1, "Satuan wajib dipilih"),
@@ -11,67 +14,67 @@ export const warehouseOutboundLineSchema = z.object({
   note: z.string().optional(),
 });
 
-export const createWarehouseOutboundSchema = z.object({
-  date: z.string().min(1, "Tanggal wajib diisi"),
-  warehouseId: z.string().min(1, "Gudang wajib dipilih"),
-  purpose: z.enum(["LOAN", "ISSUE", "PROD", "SCRAP"]),
-  targetDept: z.string().min(1, "Divisi tujuan wajib diisi"),
-  pickerName: z.string().optional(),
-  note: z.string().optional(),
-  
-  // Loan fields
-  loanReceiver: z.string().optional(),
-  expectedReturnAt: z.string().optional(),
-  loanNotes: z.string().optional(),
-  
-  // Accounting fields
-  expenseAccountId: z.string().optional(),
-  costCenter: z.string().optional(),
-  
-  lines: z
-    .array(warehouseOutboundLineSchema)
-    .min(1, "Minimal 1 item barang harus diisi"),
-}).refine(
-  (data) => {
-    // Validate date is not future
-    const inputDate = new Date(data.date);
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
-    return inputDate <= today;
-  },
-  {
-    message: "Tanggal tidak boleh lebih dari hari ini",
-    path: ["date"],
-  }
-).refine(
-  (data) => {
-    // If purpose is LOAN, loanReceiver is required
-    if (data.purpose === "LOAN" && !data.loanReceiver) {
-      return false;
+export const createWarehouseOutboundSchema = z
+  .object({
+    date: z.string().min(1, "Tanggal wajib diisi"),
+    warehouseId: z.string().min(1, "Gudang wajib dipilih"),
+    purpose: outboundPurposeEnum,
+    targetDept: z.string().min(1, "Departemen tujuan wajib diisi"),
+    pickerName: z.string().optional(),
+    loanReceiver: z.string().optional(),
+    expectedReturnAt: z.string().optional().or(z.null()),
+    loanNotes: z.string().optional(),
+    note: z.string().optional(),
+    expenseAccountId: z.string().optional(),
+    costCenter: z.string().optional(),
+    lines: z.array(warehouseOutboundLineSchema).min(1, "Minimal 1 item harus diisi"),
+  })
+  .refine(
+    (data) => {
+      if (!data.expectedReturnAt) return true;
+      const expected = new Date(data.expectedReturnAt);
+      const created = new Date(data.date);
+      return Number.isFinite(expected.getTime()) && expected >= created;
+    },
+    {
+      message: "Tanggal pengembalian harus setelah tanggal transaksi",
+      path: ["expectedReturnAt"],
     }
-    return true;
-  },
-  {
-    message: "Nama peminjam wajib diisi untuk tipe LOAN",
-    path: ["loanReceiver"],
-  }
-);
+  );
 
-export const updateWarehouseOutboundSchema = z.object({
-  date: z.string().optional(),
-  warehouseId: z.string().optional(),
-  purpose: z.enum(["LOAN", "ISSUE", "PROD", "SCRAP"]).optional(),
-  targetDept: z.string().optional(),
-  note: z.string().optional(),
-  status: z.enum(["DRAFT", "APPROVED", "RETURNED", "PARTIAL_RETURN", "CANCELLED"]).optional(),
-  lines: z.array(warehouseOutboundLineSchema).optional(),
-});
+export const updateWarehouseOutboundSchema = z
+  .object({
+    date: z.string().optional(),
+    warehouseId: z.string().optional(),
+    purpose: outboundPurposeEnum.optional(),
+    targetDept: z.string().optional(),
+    pickerName: z.string().optional().or(z.null()),
+    loanReceiver: z.string().optional().or(z.null()),
+    expectedReturnAt: z.string().optional().or(z.null()),
+    loanNotes: z.string().optional().or(z.null()),
+    note: z.string().optional().or(z.null()),
+    expenseAccountId: z.string().optional().or(z.null()),
+    costCenter: z.string().optional().or(z.null()),
+    status: outboundStatusEnum.optional(),
+    lines: z.array(warehouseOutboundLineSchema).optional(),
+  })
+  .refine(
+    (data) => {
+      if (!data.expectedReturnAt || !data.date) return true;
+      const expected = new Date(data.expectedReturnAt);
+      const created = new Date(data.date);
+      return Number.isFinite(expected.getTime()) && expected >= created;
+    },
+    {
+      message: "Tanggal pengembalian harus setelah tanggal transaksi",
+      path: ["expectedReturnAt"],
+    }
+  );
 
 export const warehouseOutboundQuerySchema = z.object({
   search: z.string().optional(),
   warehouseId: z.string().optional(),
-  status: z.string().optional(),
-  purpose: z.string().optional(),
+  purpose: outboundPurposeEnum.optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   page: z.coerce.number().int().positive().default(1),
@@ -250,6 +253,7 @@ export const createLoanReturnSchema = z.object({
 );
 
 // Export types
+
 export type WarehouseOutboundLineInput = z.infer<typeof warehouseOutboundLineSchema>;
 export type CreateWarehouseOutboundInput = z.infer<typeof createWarehouseOutboundSchema>;
 export type UpdateWarehouseOutboundInput = z.infer<typeof updateWarehouseOutboundSchema>;

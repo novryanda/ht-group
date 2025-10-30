@@ -1,28 +1,761 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
-  provider   = "prisma-client-js"
-  // Ensure Prisma generates the appropriate Query Engine for Vercel's runtime
-  // Add the Vercel Linux runtime target so the native Node-API library is bundled.
-  // "native" keeps local dev behaviour; add other targets if you deploy to other platforms.
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
-  // Use the Node-API library engine (libquery_engine-*.so.node). This is the
-  // recommended engine for serverless deployments on Vercel.
-  engineType = "library"
+  engineType    = "library"
 }
 
 datasource db {
   provider  = "postgresql"
-  // NOTE: When using mysql or sqlserver, uncomment the @db.Text annotations in model Account below
-  // Further reading:
-  // https://next-auth.js.org/adapters/prisma#create-the-prisma-schema
-  // https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#string
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
-// ERP Core Models
+model Company {
+  id                String              @id @default(cuid())
+  code              String?             @unique
+  name              String              @unique
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  accounts          Account[]
+  fiscalPeriods     FiscalPeriod[]
+  journalEntries    JournalEntry[]
+  openingBalances   OpeningBalance[]
+  systemAccountMaps SystemAccountMap[]
+  WeighbridgeTicket WeighbridgeTicket[]
+  employees         Employee[]
+}
+
+model Employee {
+  id_karyawan           String           @id @default(cuid())
+  nama                  String?          @db.VarChar(100)
+  status_kk             String?          @db.VarChar(50)
+  jenis_kelamin         String?          @db.Char(1)
+  agama                 String?          @db.VarChar(30)
+  suku                  String?          @db.VarChar(50)
+  golongan_darah        String?          @db.VarChar(5)
+  no_telp_hp            String?          @db.VarChar(20)
+  tempat_lahir          String?          @db.VarChar(50)
+  tanggal_lahir         DateTime?
+  umur                  Int?
+  alamat_rt_rw          String?          @db.VarChar(20)
+  alamat_desa           String?          @db.VarChar(100)
+  alamat_kecamatan      String?          @db.VarChar(100)
+  alamat_kabupaten      String?          @db.VarChar(100)
+  alamat_provinsi       String?          @db.VarChar(100)
+  pendidikan_terakhir   String?          @db.VarChar(50)
+  jurusan               String?          @db.VarChar(100)
+  jabatan               String?          @db.VarChar(100)
+  devisi                String?          @db.VarChar(100)
+  level                 String?          @db.VarChar(50)
+  tgl_masuk_kerja       DateTime?
+  tgl_terakhir_kerja    DateTime?
+  masa_kerja            String?          @db.VarChar(50)
+  status_pkwt           String?          @db.VarChar(50)
+  no_bpjs_tenaga_kerja  String?          @db.VarChar(50)
+  no_nik_ktp            String?          @db.VarChar(20)
+  no_bpjs_kesehatan     String?          @db.VarChar(50)
+  no_npwp               String?          @db.VarChar(50)
+  status_pajak          String?          @db.VarChar(20)
+  no_rekening_bank      String?          @db.VarChar(50)
+  perusahaan_sebelumnya String?          @db.VarChar(100)
+  companyId             String?
+  userId                String?          @unique
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  EmployeeFamily        EmployeeFamily[]
+  company               Company?         @relation(fields: [companyId], references: [id])
+  user                  User?            @relation(fields: [userId], references: [id])
+
+  @@map("karyawan")
+}
+
+model EmployeeFamily {
+  id                String         @id @default(cuid())
+  employeeId        String
+  nama              String         @db.VarChar(100)
+  hubungan          FamilyRelation
+  jenis_kelamin     String?        @db.Char(1)
+  tanggal_lahir     DateTime?
+  umur              Int?
+  no_nik_ktp        String?        @db.VarChar(20)
+  no_bpjs_kesehatan String?        @db.VarChar(50)
+  no_telp_hp        String?        @db.VarChar(20)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  employee          Employee       @relation(fields: [employeeId], references: [id_karyawan], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@map("employee_family")
+}
+
+model User {
+  id        String    @id @default(cuid())
+  name      String?
+  email     String?   @unique
+  password  String?
+  role      UserRole  @default(OPERATOR)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+  employee  Employee?
+}
+
+model SupplierTBS {
+  id                    String              @id @default(cuid())
+  nomorForm             String?
+  typeSupplier          SupplierType
+  pajakPKP              PajakPKP            @default(NON_PKP)
+  namaPemilik           String
+  alamatPemilik         String?
+  hpPemilik             String?
+  namaPerusahaan        String?
+  alamatRampPeron       String?
+  hpPerusahaan          String?
+  bujur                 String?
+  lintang               String?
+  profilKebun           Json?
+  pengelolaanSwadaya    String?
+  pengelolaanKelompok   String?
+  pengelolaanPerusahaan String?
+  jenisBibit            String?
+  sertifikasiISPO       Boolean             @default(false)
+  sertifikasiRSPO       Boolean             @default(false)
+  aktePendirian         String?
+  aktePerubahan         String?
+  nib                   String?             @unique
+  siup                  String?
+  npwp                  String?             @unique
+  penjualanLangsungPKS  String?
+  penjualanAgen         String?
+  transportMilikSendiri Int?
+  transportPihak3       Int?
+  bankName              String?
+  bankAccountNo         String?
+  bankAccountName       String?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  weighbridgeTickets    WeighbridgeTicket[]
+
+  @@index([typeSupplier])
+  @@index([pajakPKP])
+}
+
+model Buyer {
+  id              String         @id @default(cuid())
+  buyerCode       String         @unique
+  type            BuyerType
+  legalName       String
+  tradeName       String?
+  npwp            String?        @unique
+  pkpStatus       PkpStatus
+  addressLine     String
+  city            String
+  province        String
+  postalCode      String?
+  billingEmail    String
+  phone           String
+  destinationName String
+  destinationAddr String
+  status          BuyerStatus    @default(VERIFIED)
+  verifiedAt      DateTime?
+  verifiedById    String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  contacts        BuyerContact[]
+  docs            BuyerDoc[]
+
+  @@index([type])
+  @@index([status])
+  @@index([city])
+  @@index([province])
+}
+
+model BuyerContact {
+  id        String  @id @default(cuid())
+  buyerId   String
+  name      String
+  role      String?
+  email     String
+  phone     String
+  isBilling Boolean @default(false)
+  buyer     Buyer   @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+
+  @@index([buyerId])
+}
+
+model BuyerDoc {
+  id       String @id @default(cuid())
+  buyerId  String
+  kind     String
+  fileUrl  String
+  fileName String
+  buyer    Buyer  @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+
+  @@index([buyerId])
+}
+
+model Transporter {
+  id            String              @id @default(cuid())
+  type          TransporterType
+  legalName     String
+  tradeName     String?
+  npwp          String?             @unique
+  pkpStatus     PkpStatus
+  addressLine   String?
+  city          String?
+  province      String?
+  postalCode    String?
+  picName       String?
+  picPhone      String?
+  picEmail      String?
+  bankName      String?
+  bankAccountNo String?
+  bankAccountNm String?
+  statementUrl  String?
+  isVerified    Boolean             @default(true)
+  status        RecordStatus        @default(AKTIF)
+  notes         String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  drivers       Driver[]
+  contracts     TransportContract[]
+  tariffs       TransportTariff[]
+  vehicles      Vehicle[]
+
+  @@index([legalName])
+  @@index([pkpStatus])
+  @@index([status])
+  @@index([city])
+}
+
+model Vehicle {
+  id                 String              @id @default(cuid())
+  transporterId      String
+  plateNo            String              @unique
+  type               String
+  capacityTons       Decimal?            @db.Decimal(10, 2)
+  stnkUrl            String?
+  stnkValidThru      DateTime?
+  kirUrl             String?
+  kirValidThru       DateTime?
+  gpsId              String?
+  photoUrl           String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  transporter        Transporter         @relation(fields: [transporterId], references: [id], onDelete: Cascade)
+  weighbridgeTickets WeighbridgeTicket[]
+
+  @@index([transporterId])
+  @@index([plateNo])
+}
+
+model Driver {
+  id            String      @id @default(cuid())
+  transporterId String
+  name          String
+  phone         String?
+  nik           String?
+  simType       String?
+  simUrl        String?
+  simValidThru  DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  transporter   Transporter @relation(fields: [transporterId], references: [id], onDelete: Cascade)
+
+  @@index([transporterId])
+  @@index([name])
+}
+
+model TransportTariff {
+  id            String      @id @default(cuid())
+  transporterId String
+  origin        String
+  destination   String
+  commodity     String
+  unit          String
+  price         Decimal     @db.Decimal(15, 2)
+  includeToll   Boolean     @default(false)
+  includeUnload Boolean     @default(false)
+  includeTax    Boolean     @default(false)
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  transporter   Transporter @relation(fields: [transporterId], references: [id], onDelete: Cascade)
+
+  @@index([transporterId, origin, destination, commodity])
+}
+
+model TransportContract {
+  id            String      @id @default(cuid())
+  transporterId String
+  contractNo    String      @unique
+  buyerId       String?
+  commodity     String
+  startDate     DateTime?
+  endDate       DateTime?
+  baseTariffId  String?
+  dokUrl        String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  transporter   Transporter @relation(fields: [transporterId], references: [id], onDelete: Cascade)
+
+  @@index([transporterId])
+  @@index([contractNo])
+}
+
+model Account {
+  id                String             @id @default(cuid())
+  companyId         String
+  code              String
+  name              String
+  class             AccountClass
+  normalSide        NormalSide
+  isPosting         Boolean            @default(true)
+  isCashBank        Boolean            @default(false)
+  taxCode           TaxCode            @default(NON_TAX)
+  currency          String?            @db.VarChar(10)
+  description       String?            @db.VarChar(300)
+  status            RecordStatus       @default(AKTIF)
+  parentId          String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parent            Account?           @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children          Account[]          @relation("AccountHierarchy")
+  journalLines      JournalLine[]
+  openingBalances   OpeningBalance[]
+  systemAccountMaps SystemAccountMap[]
+
+  @@unique([companyId, code])
+  @@index([companyId, class])
+  @@index([parentId])
+}
+
+model SystemAccountMap {
+  id        String           @id @default(cuid())
+  companyId String
+  key       SystemAccountKey
+  accountId String
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  account   Account          @relation(fields: [accountId], references: [id])
+  company   Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, key])
+  @@index([accountId])
+}
+
+model FiscalPeriod {
+  id              String           @id @default(cuid())
+  companyId       String
+  year            Int
+  month           Int
+  startDate       DateTime
+  endDate         DateTime
+  isClosed        Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  openingBalances OpeningBalance[]
+
+  @@unique([companyId, year, month])
+  @@index([companyId, isClosed])
+}
+
+model OpeningBalance {
+  id        String       @id @default(cuid())
+  companyId String
+  periodId  String
+  accountId String
+  debit     Decimal      @default(0) @db.Decimal(18, 2)
+  credit    Decimal      @default(0) @db.Decimal(18, 2)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  account   Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  company   Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  period    FiscalPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, periodId, accountId])
+  @@index([accountId])
+}
+
+model PksMutuProduksi {
+  id         String    @id @default(cuid())
+  rowId      String    @unique
+  tanggal    DateTime
+  shift      String    @db.VarChar(10)
+  payload    Json
+  syncStatus String?   @db.VarChar(20)
+  sentAt     DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([tanggal, shift])
+  @@index([tanggal])
+  @@index([shift])
+}
+
+model Unit {
+  id                String             @id @default(cuid())
+  code              String             @unique
+  name              String
+  isBase            Boolean            @default(false)
+  conversionToBase  Decimal            @default(1.0) @db.Decimal(10, 4)
+  description       String?
+  isActive          Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  goodsIssueLines   GoodsIssueLine[]
+  goodsReceiptLines GoodsReceiptLine[]
+  itemsAsBase       Item[]             @relation("ItemBaseUnit")
+  itemsAsIssue      Item[]             @relation("ItemIssueUnit")
+  itemRequestLines  ItemRequestLine[]
+
+  @@index([name])
+}
+
+model Category {
+  id          String     @id @default(cuid())
+  code        String     @unique
+  name        String
+  description String?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  items       Item[]
+  itemTypes   ItemType[]
+
+  @@index([name])
+}
+
+model ItemType {
+  id          String   @id @default(cuid())
+  categoryId  String
+  code        String
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  items       Item[]
+  category    Category @relation(fields: [categoryId], references: [id])
+
+  @@unique([categoryId, code])
+  @@index([categoryId])
+  @@index([name])
+}
+
+model Warehouse {
+  id            String         @id @default(cuid())
+  code          String         @unique
+  name          String
+  address       String?
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  bins          Bin[]
+  goodsIssues   GoodsIssue[]
+  goodsReceipts GoodsReceipt[]
+  stockBalances StockBalance[]
+  stockLedgers  StockLedger[]
+
+  @@index([name])
+}
+
+model Bin {
+  id            String         @id @default(cuid())
+  warehouseId   String
+  code          String
+  name          String
+  description   String?
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  warehouse     Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  stockBalances StockBalance[]
+  stockLedgers  StockLedger[]
+
+  @@unique([warehouseId, code])
+  @@index([warehouseId])
+}
+
+model Item {
+  id                 String              @id @default(cuid())
+  sku                String              @unique
+  name               String
+  description        String?
+  categoryId         String
+  itemTypeId         String
+  baseUnitId         String
+  defaultIssueUnitId String?
+  valuationMethod    String              @default("AVERAGE")
+  minStock           Decimal?            @db.Decimal(18, 4)
+  maxStock           Decimal?            @db.Decimal(18, 4)
+  isActive           Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  goodsIssueLines    GoodsIssueLine[]
+  goodsReceiptLines  GoodsReceiptLine[]
+  baseUnit           Unit                @relation("ItemBaseUnit", fields: [baseUnitId], references: [id])
+  category           Category            @relation(fields: [categoryId], references: [id])
+  defaultIssueUnit   Unit?               @relation("ItemIssueUnit", fields: [defaultIssueUnitId], references: [id], onDelete: Restrict)
+  itemType           ItemType            @relation(fields: [itemTypeId], references: [id])
+  itemRequestLines   ItemRequestLine[]
+  stockBalances      StockBalance[]
+  stockLedgers       StockLedger[]
+  weighbridgeTickets WeighbridgeTicket[]
+
+  @@index([name])
+  @@index([sku])
+  @@index([categoryId])
+  @@index([itemTypeId])
+}
+
+model StockBalance {
+  id          String    @id @default(cuid())
+  itemId      String
+  warehouseId String
+  binId       String?
+  qtyOnHand   Decimal   @default(0) @db.Decimal(18, 4)
+  avgCost     Decimal   @default(0) @db.Decimal(18, 4)
+  updatedAt   DateTime  @updatedAt
+  bin         Bin?      @relation(fields: [binId], references: [id])
+  item        Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, warehouseId, binId])
+  @@index([itemId])
+  @@index([warehouseId])
+}
+
+model StockLedger {
+  id            String    @id @default(cuid())
+  ts            DateTime  @default(now())
+  itemId        String
+  warehouseId   String
+  binId         String?
+  referenceType String
+  referenceId   String
+  qtyDelta      Decimal   @db.Decimal(18, 4)
+  unitCost      Decimal?  @db.Decimal(18, 4)
+  note          String?
+  createdById   String
+  createdAt     DateTime  @default(now())
+  bin           Bin?      @relation(fields: [binId], references: [id])
+  item          Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  warehouse     Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@index([warehouseId])
+  @@index([referenceType])
+  @@index([ts])
+}
+
+model GoodsReceipt {
+  id          String             @id @default(cuid())
+  docNumber   String             @unique
+  date        DateTime
+  warehouseId String
+  sourceType  String
+  sourceRef   String?
+  loanIssueId String?
+  note        String?
+  glStatus    String             @default("PENDING")
+  glPostedAt  DateTime?
+  glEntryId   String?
+  createdById String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  warehouse   Warehouse          @relation(fields: [warehouseId], references: [id])
+  lines       GoodsReceiptLine[]
+
+  @@index([date])
+  @@index([warehouseId])
+  @@index([sourceType])
+  @@index([loanIssueId])
+}
+
+model GoodsReceiptLine {
+  id              String       @id @default(cuid())
+  receiptId       String
+  itemId          String
+  unitId          String
+  qty             Decimal      @db.Decimal(18, 4)
+  unitCost        Decimal?     @db.Decimal(18, 4)
+  note            String?
+  loanIssueLineId String?
+  item            Item         @relation(fields: [itemId], references: [id])
+  receipt         GoodsReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  unit            Unit         @relation(fields: [unitId], references: [id])
+
+  @@index([receiptId])
+  @@index([itemId])
+  @@index([loanIssueLineId])
+}
+
+model GoodsIssue {
+  id                  String           @id @default(cuid())
+  docNumber           String           @unique
+  date                DateTime
+  warehouseId         String
+  purpose             String
+  targetDept          String?
+  pickerName          String?
+  status              String           @default("APPROVED")
+  note                String?
+  loanReceiver        String?
+  expectedReturnAt    DateTime?
+  loanNotes           String?
+  isLoanFullyReturned Boolean          @default(false)
+  expenseAccountId    String?
+  costCenter          String?
+  glStatus            String           @default("PENDING")
+  glPostedAt          DateTime?
+  glEntryId           String?
+  createdById         String
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  warehouse           Warehouse        @relation(fields: [warehouseId], references: [id])
+  lines               GoodsIssueLine[]
+
+  @@index([date])
+  @@index([warehouseId])
+  @@index([status])
+  @@index([purpose])
+  @@index([glStatus])
+}
+
+model GoodsIssueLine {
+  id          String     @id @default(cuid())
+  issueId     String
+  itemId      String
+  unitId      String
+  qty         Decimal    @db.Decimal(18, 4)
+  unitCost    Decimal?   @db.Decimal(18, 4)
+  note        String?
+  qtyReturned Decimal    @default(0) @db.Decimal(18, 4)
+  issue       GoodsIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  item        Item       @relation(fields: [itemId], references: [id])
+  unit        Unit       @relation(fields: [unitId], references: [id])
+
+  @@index([issueId])
+  @@index([itemId])
+}
+
+model ItemRequest {
+  id             String            @id @default(cuid())
+  reqNumber      String            @unique
+  date           DateTime
+  requestDept    String
+  reason         String?
+  status         String            @default("DRAFT")
+  relatedFunding String?
+  createdById    String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  lines          ItemRequestLine[]
+
+  @@index([date])
+  @@index([status])
+}
+
+model ItemRequestLine {
+  id        String      @id @default(cuid())
+  requestId String
+  itemId    String
+  unitId    String
+  qty       Decimal     @db.Decimal(18, 4)
+  item      Item        @relation(fields: [itemId], references: [id])
+  request   ItemRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  unit      Unit        @relation(fields: [unitId], references: [id])
+
+  @@index([requestId])
+  @@index([itemId])
+}
+
+model JournalEntry {
+  id          String        @id @default(cuid())
+  companyId   String
+  entryNumber String        @unique
+  date        DateTime
+  sourceType  String
+  sourceId    String?
+  memo        String?
+  status      String        @default("POSTED")
+  postedAt    DateTime?
+  postedById  String?
+  createdById String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lines       JournalLine[]
+
+  @@index([companyId, date])
+  @@index([sourceType, sourceId])
+  @@index([status])
+}
+
+model JournalLine {
+  id          String       @id @default(cuid())
+  entryId     String
+  accountId   String
+  debit       Decimal      @default(0) @db.Decimal(18, 2)
+  credit      Decimal      @default(0) @db.Decimal(18, 2)
+  costCenter  String?
+  dept        String?
+  itemId      String?
+  warehouseId String?
+  description String?
+  account     Account      @relation(fields: [accountId], references: [id])
+  entry       JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([entryId])
+  @@index([accountId])
+  @@index([costCenter])
+}
+
+model WeighbridgeTicket {
+  id                      String      @id @default(cuid())
+  companyId               String
+  noSeri                  String
+  vehicleId               String
+  supplierId              String
+  itemId                  String
+  tanggal                 DateTime
+  jamMasuk                DateTime
+  jamKeluar               DateTime?
+  timbang1                Decimal     @db.Decimal(12, 2)
+  timbang2                Decimal     @db.Decimal(12, 2)
+  netto1                  Decimal     @db.Decimal(12, 2)
+  potPercent              Decimal     @db.Decimal(5, 4)
+  potKg                   Decimal     @db.Decimal(12, 2)
+  beratTerima             Decimal     @db.Decimal(12, 2)
+  lokasiKebun             String?
+  penimbang               String?
+  hargaPerKg              Decimal     @default(0) @db.Decimal(12, 2)
+  pphRate                 Decimal     @default(0) @db.Decimal(5, 4)
+  upahBongkarPerKg        Decimal     @default(0) @db.Decimal(12, 2)
+  total                   Decimal     @default(0) @db.Decimal(14, 2)
+  totalPph                Decimal     @default(0) @db.Decimal(14, 2)
+  totalUpahBongkar        Decimal     @default(0) @db.Decimal(14, 2)
+  totalPembayaranSupplier Decimal     @default(0) @db.Decimal(14, 2)
+  status                  DocStatus   @default(DRAFT)
+  purchaseJeId            String?
+  unloadJeId              String?
+  createdAt               DateTime    @default(now())
+  updatedAt               DateTime    @updatedAt
+  createdById             String
+  company                 Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  vehicle                 Vehicle     @relation(fields: [vehicleId], references: [id])
+  supplier                SupplierTBS @relation(fields: [supplierId], references: [id])
+  item                    Item        @relation(fields: [itemId], references: [id])
+
+  @@unique([companyId, noSeri])
+  @@index([tanggal])
+  @@index([status])
+  @@index([vehicleId])
+  @@index([supplierId])
+  @@index([itemId])
+}
 
 enum UserRole {
   GROUP_VIEWER
@@ -49,9 +782,9 @@ enum SupplierType {
 }
 
 enum PajakPKP {
-  PKP_11_PERSEN // 11%
-  PKP_1_1_PERSEN // 1.1%
-  NON_PKP // Non PKP
+  PKP_11_PERSEN
+  PKP_1_1_PERSEN
+  NON_PKP
 }
 
 enum FamilyRelation {
@@ -121,7 +854,6 @@ enum SystemAccountKey {
   SALES_KERNEL
   INVENTORY_CPO
   INVENTORY_KERNEL
-  INVENTORY_GENERAL // Inventory umum untuk material non-TBS/CPO/Kernel
   COGS_CPO
   COGS_KERNEL
   CASH_DEFAULT
@@ -130,819 +862,15 @@ enum SystemAccountKey {
   PPN_MASUKAN
   PPH22_DEFAULT
   PPH23_DEFAULT
+  INVENTORY_GENERAL
   INVENTORY_ON_LOAN
   INVENTORY_ADJUSTMENT_LOSS
   PRODUCTION_CONSUMPTION
   MAINTENANCE_EXPENSE_DEFAULT
 }
 
-// Company Model
-model Company {
-  id        String     @id @default(cuid())
-  code      String?    @unique // Company code for identification (e.g., "HTK", "NILO", etc.) - temporarily optional
-  name      String     @unique
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  employees Employee[]
-  accounts  Account[]
-  systemAccountMaps SystemAccountMap[]
-  fiscalPeriods FiscalPeriod[]
-  openingBalances OpeningBalance[]
-  journalEntries JournalEntry[]
-}
-
-// Employee Model (maps to karyawan table)
-model Employee {
-  id_karyawan           String    @id @default(cuid())
-  nama                  String?   @db.VarChar(100)
-  status_kk             String?   @db.VarChar(50) // status dalam KK
-  jenis_kelamin         String?   @db.Char(1) // L / P
-  agama                 String?   @db.VarChar(30)
-  suku                  String?   @db.VarChar(50)
-  golongan_darah        String?   @db.VarChar(5)
-  no_telp_hp            String?   @db.VarChar(20)
-  tempat_lahir          String?   @db.VarChar(50)
-  tanggal_lahir         DateTime?
-  umur                  Int?
-  alamat_rt_rw          String?   @db.VarChar(20)
-  alamat_desa           String?   @db.VarChar(100)
-  alamat_kecamatan      String?   @db.VarChar(100)
-  alamat_kabupaten      String?   @db.VarChar(100)
-  alamat_provinsi       String?   @db.VarChar(100)
-  pendidikan_terakhir   String?   @db.VarChar(50)
-  jurusan               String?   @db.VarChar(100)
-  jabatan               String?   @db.VarChar(100)
-  devisi                String?   @db.VarChar(100)
-  level                 String?   @db.VarChar(50)
-  tgl_masuk_kerja       DateTime?
-  tgl_terakhir_kerja    DateTime?
-  masa_kerja            String?   @db.VarChar(50)
-  status_pkwt           String?   @db.VarChar(50) // PKWT
-  no_bpjs_tenaga_kerja  String?   @db.VarChar(50)
-  no_nik_ktp            String?   @db.VarChar(20)
-  no_bpjs_kesehatan     String?   @db.VarChar(50)
-  no_npwp               String?   @db.VarChar(50)
-  status_pajak          String?   @db.VarChar(20) // TK/0, TK/1, K/0, K/1, dst.
-  no_rekening_bank      String?   @db.VarChar(50)
-  perusahaan_sebelumnya String?   @db.VarChar(100)
-
-  // Relationships
-  companyId      String?
-  company        Company?         @relation(fields: [companyId], references: [id])
-  userId         String?          @unique
-  user           User?            @relation(fields: [userId], references: [id])
-  EmployeeFamily EmployeeFamily[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("karyawan")
-}
-
-// Employee Family Model - Keluarga Karyawan (Istri & Anak)
-model EmployeeFamily {
-  id                String         @id @default(cuid())
-  employeeId        String
-  employee          Employee       @relation(fields: [employeeId], references: [id_karyawan], onDelete: Cascade)
-
-  nama              String         @db.VarChar(100)
-  hubungan          FamilyRelation
-  jenis_kelamin     String?        @db.Char(1) // L/P
-  tanggal_lahir     DateTime?
-  umur              Int?
-  no_nik_ktp        String?        @db.VarChar(20)
-  no_bpjs_kesehatan String?        @db.VarChar(50)
-  no_telp_hp        String?        @db.VarChar(20)
-
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-
-  @@index([employeeId])
-  @@map("employee_family")
-}
-
-// User Model - Core authentication
-model User {
-  id       String    @id @default(cuid())
-  name     String?
-  email    String?   @unique
-  password String? // Hashed password for authentication
-  role     UserRole  @default(OPERATOR)
-  employee Employee?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-}
-
-// Supplier TBS Model for PT PKS
-model SupplierTBS {
-  id           String       @id @default(cuid())
-  nomorForm    String? // ex: .../PT.TRT/SUPP-TBS/mm/2024
-  typeSupplier SupplierType
-  pajakPKP     PajakPKP     @default(NON_PKP)
-
-  // IDENTITAS
-  namaPemilik     String
-  alamatPemilik   String?
-  hpPemilik       String?
-  namaPerusahaan  String?
-  alamatRampPeron String?
-  hpPerusahaan    String?
-  bujur           String?
-  lintang         String?
-
-  // PROFIL KEBUN - JSON field containing tahunTanam, luasKebun, estimasiSupply
-  profilKebun Json?
-
-  // TIPE PENGELOLAAN
-  pengelolaanSwadaya    String?
-  pengelolaanKelompok   String?
-  pengelolaanPerusahaan String?
-  jenisBibit            String?
-  sertifikasiISPO       Boolean @default(false)
-  sertifikasiRSPO       Boolean @default(false)
-
-  // PROFIL IZIN USAHA
-  aktePendirian String?
-  aktePerubahan String?
-  nib           String? @unique
-  siup          String?
-  npwp          String? @unique
-
-  // PENJUALAN TBS
-  penjualanLangsungPKS String?
-  penjualanAgen        String?
-
-  // TRANSPORTASI
-  transportMilikSendiri Int?
-  transportPihak3       Int?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([typeSupplier])
-  @@index([pajakPKP])
-}
-
-// Buyer Model for PT PKS - DataMaster Buyer
-model Buyer {
-  id               String      @id @default(cuid())
-  buyerCode        String      @unique
-  type             BuyerType   // COMPANY | PERSON
-  legalName        String
-  tradeName        String?
-  npwp             String?     @unique
-  pkpStatus        PkpStatus   // NON_PKP | PKP_11 | PKP_1_1
-  addressLine      String
-  city             String
-  province         String
-  postalCode       String?
-  billingEmail     String
-  phone            String
-  destinationName  String      // gudang/bulking tujuan
-  destinationAddr  String
-
-  status           BuyerStatus @default(VERIFIED) // DRAFT | VERIFIED | INACTIVE
-  verifiedAt       DateTime?
-  verifiedById     String?
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-
-  contacts         BuyerContact[]
-  docs             BuyerDoc[]
-
-  @@index([type])
-  @@index([status])
-  @@index([city])
-  @@index([province])
-}
-
-model BuyerContact {
-  id        String  @id @default(cuid())
-  buyerId   String
-  name      String
-  role      String?
-  email     String
-  phone     String
-  isBilling Boolean @default(false)
-  buyer     Buyer   @relation(fields: [buyerId], references: [id], onDelete: Cascade)
-
-  @@index([buyerId])
-}
-
-model BuyerDoc {
-  id        String @id @default(cuid())
-  buyerId   String
-  kind      String // NPWP | NIB | KTP_PIC | AKTA | ...
-  fileUrl   String
-  fileName  String
-  buyer     Buyer  @relation(fields: [buyerId], references: [id], onDelete: Cascade)
-
-  @@index([buyerId])
-}
-
-// Transporter Model for PT PKS - DataMaster Transportir
-model Transporter {
-  id              String         @id @default(cuid())
-  type            TransporterType
-  legalName       String
-  tradeName       String?
-  npwp            String?        @unique
-  pkpStatus       PkpStatus      // NON_PKP | PKP_11 | PKP_1_1
-  addressLine     String?
-  city            String?
-  province        String?
-  postalCode      String?
-  picName         String?
-  picPhone        String?
-  picEmail        String?
-  bankName        String?
-  bankAccountNo   String?
-  bankAccountNm   String?
-  statementUrl    String?        // surat pernyataan (NPWP/rekening)
-  isVerified      Boolean        @default(true) // admin input → auto verified
-  status          RecordStatus   @default(AKTIF)
-  notes           String?
-
-  vehicles        Vehicle[]
-  drivers         Driver[]
-  tariffs         TransportTariff[]
-  contracts       TransportContract[]
-
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-
-  @@index([legalName])
-  @@index([pkpStatus])
-  @@index([status])
-  @@index([city])
-}
-
-model Vehicle {
-  id              String     @id @default(cuid())
-  transporterId   String
-  plateNo         String     @unique
-  type            String
-  capacityTons    Decimal?   @db.Decimal(10, 2)
-  stnkUrl         String?
-  stnkValidThru   DateTime?
-  kirUrl          String?
-  kirValidThru    DateTime?
-  gpsId           String?
-  photoUrl        String?
-
-  transporter     Transporter @relation(fields: [transporterId], references: [id], onDelete: Cascade)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-
-  @@index([transporterId])
-  @@index([plateNo])
-}
-
-model Driver {
-  id              String     @id @default(cuid())
-  transporterId   String
-  name            String
-  phone           String?
-  nik             String?
-  simType         String?
-  simUrl          String?
-  simValidThru    DateTime?
-
-  transporter     Transporter @relation(fields: [transporterId], references: [id], onDelete: Cascade)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-
-  @@index([transporterId])
-  @@index([name])
-}
-
-model TransportTariff {
-  id              String     @id @default(cuid())
-  transporterId   String
-  origin          String     // cluster/kebun/pabrik
-  destination     String     // pabrik/SPBE
-  commodity       String     // TBS/CPO/Kernel/PKO
-  unit            String     // TON/KM/TRIP
-  price           Decimal    @db.Decimal(15, 2)
-  includeToll     Boolean    @default(false)
-  includeUnload   Boolean    @default(false)
-  includeTax      Boolean    @default(false)
-  notes           String?
-
-  transporter     Transporter @relation(fields: [transporterId], references: [id], onDelete: Cascade)
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-
-  @@index([transporterId, origin, destination, commodity])
-}
-
-model TransportContract {
-  id              String     @id @default(cuid())
-  transporterId   String
-  contractNo      String     @unique
-  buyerId         String?    // opsional: relasi ke Buyer jika 3 pihak
-  commodity       String
-  startDate       DateTime?
-  endDate         DateTime?
-  baseTariffId    String?
-  dokUrl          String?
-
-  transporter     Transporter @relation(fields:[transporterId], references:[id], onDelete: Cascade)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-
-  @@index([transporterId])
-  @@index([contractNo])
-}
-
-// Account Model - Chart of Accounts (Daftar Akun)
-model Account {
-  id            String        @id @default(cuid())
-  companyId     String
-  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  code          String
-  name          String
-  class         AccountClass
-  normalSide    NormalSide
-  isPosting     Boolean       @default(true)
-  isCashBank    Boolean       @default(false)
-  taxCode       TaxCode       @default(NON_TAX)
-
-  currency      String?       @db.VarChar(10)
-  description   String?       @db.VarChar(300)
-  status        RecordStatus  @default(AKTIF)
-
-  parentId      String?
-  parent        Account?      @relation("AccountHierarchy", fields: [parentId], references: [id])
-  children      Account[]     @relation("AccountHierarchy")
-
-  systemAccountMaps SystemAccountMap[]
-  openingBalances   OpeningBalance[]
-  journalLines      JournalLine[]
-
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-
-  @@unique([companyId, code])
-  @@index([companyId, class])
-  @@index([parentId])
-}
-
-// SystemAccountMap Model - Mapping akun untuk transaksi otomatis
-model SystemAccountMap {
-  id         String            @id @default(cuid())
-  companyId  String
-  company    Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  key        SystemAccountKey
-  accountId  String
-  account    Account           @relation(fields: [accountId], references: [id], onDelete: Restrict)
-
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
-
-  @@unique([companyId, key])
-  @@index([accountId])
-}
-
-// FiscalPeriod Model - Periode fiskal per bulan
-model FiscalPeriod {
-  id         String    @id @default(cuid())
-  companyId  String
-  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  year       Int
-  month      Int
-  startDate  DateTime
-  endDate    DateTime
-  isClosed   Boolean   @default(false)
-
-  openingBalances OpeningBalance[]
-
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-
-  @@unique([companyId, year, month])
-  @@index([companyId, isClosed])
-}
-
-// OpeningBalance Model - Saldo awal akun per periode
-model OpeningBalance {
-  id          String      @id @default(cuid())
-  companyId   String
-  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  periodId    String
-  period      FiscalPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
-
-  accountId   String
-  account     Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
-
-  debit       Decimal     @db.Decimal(18,2) @default(0)
-  credit      Decimal     @db.Decimal(18,2) @default(0)
-
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  @@unique([companyId, periodId, accountId])
-  @@index([accountId])
-}
-
-// ============================================
-// DATA MUTU PRODUKSI - PT PKS
-// ============================================
-
-// PksMutuProduksi - Data mutu produksi dari Google Sheets
-model PksMutuProduksi {
-  id          String   @id @default(cuid())
-  rowId       String   @unique
-  tanggal     DateTime
-  shift       String   @db.VarChar(10)
-  payload     Json
-  syncStatus  String?  @db.VarChar(20)
-  sentAt      DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@unique([tanggal, shift])
-  @@index([tanggal])
-  @@index([shift])
-}
-
-// ============================================
-// MATERIAL INVENTORY MODELS - PT PKS
-// ============================================
-
-// Unit (Satuan Barang) Model
-model Unit {
-  id                 String   @id @default(cuid())
-  code               String   @unique
-  name               String
-  isBase             Boolean  @default(false)
-  conversionToBase   Decimal  @db.Decimal(10,4) @default(1.0)
-  description        String?  @db.Text
-  isActive           Boolean  @default(true)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  // Relations
-  itemsAsBase        Item[]   @relation("ItemBaseUnit")
-  itemsAsIssue       Item[]   @relation("ItemIssueUnit")
-  goodsReceiptLines  GoodsReceiptLine[]
-  goodsIssueLines    GoodsIssueLine[]
-  itemRequestLines   ItemRequestLine[]
-
-  @@index([name])
-}
-
-// Category (Kategori Barang) Model
-model Category {
-  id          String     @id @default(cuid())
-  code        String     @unique
-  name        String
-  description String?    @db.Text
-  isActive    Boolean    @default(true)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
-  // Relations
-  itemTypes   ItemType[]
-  items       Item[]
-
-  @@index([name])
-}
-
-// ItemType (Jenis Barang) Model
-model ItemType {
-  id          String   @id @default(cuid())
-  categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  code        String
-  name        String
-  description String?  @db.Text
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  items       Item[]
-
-  @@unique([categoryId, code])
-  @@index([categoryId])
-  @@index([name])
-}
-
-// Warehouse (Gudang) Model
-model Warehouse {
-  id          String   @id @default(cuid())
-  code        String   @unique
-  name        String
-  address     String?  @db.Text
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  bins            Bin[]
-  stockBalances   StockBalance[]
-  stockLedgers    StockLedger[]
-  goodsReceipts   GoodsReceipt[]
-  goodsIssues     GoodsIssue[]
-
-  @@index([name])
-}
-
-// Bin (Lokasi Rak/Bin di Gudang) Model
-model Bin {
-  id          String    @id @default(cuid())
-  warehouseId String
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  code        String
-  name        String
-  description String?   @db.Text
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  // Relations
-  stockBalances StockBalance[]
-  stockLedgers  StockLedger[]
-
-  @@unique([warehouseId, code])
-  @@index([warehouseId])
-}
-
-// Item (Barang/Material) Model
-model Item {
-  id                  String   @id @default(cuid())
-  sku                 String   @unique
-  name                String
-  description         String?  @db.Text
-  categoryId          String
-  category            Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  itemTypeId          String
-  itemType            ItemType @relation(fields: [itemTypeId], references: [id], onDelete: Restrict)
-  baseUnitId          String
-  baseUnit            Unit     @relation("ItemBaseUnit", fields: [baseUnitId], references: [id], onDelete: Restrict)
-  defaultIssueUnitId  String?
-  defaultIssueUnit    Unit?    @relation("ItemIssueUnit", fields: [defaultIssueUnitId], references: [id], onDelete: Restrict)
-  valuationMethod     String   @default("AVERAGE") // AVERAGE or FIFO
-  minStock            Decimal? @db.Decimal(18,4)
-  maxStock            Decimal? @db.Decimal(18,4)
-  isActive            Boolean  @default(true)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  // Relations
-  stockBalances     StockBalance[]
-  stockLedgers      StockLedger[]
-  goodsReceiptLines GoodsReceiptLine[]
-  goodsIssueLines   GoodsIssueLine[]
-  itemRequestLines  ItemRequestLine[]
-
-  @@index([name])
-  @@index([sku])
-  @@index([categoryId])
-  @@index([itemTypeId])
-}
-
-// StockBalance (Saldo Stok) Model
-model StockBalance {
-  id          String    @id @default(cuid())
-  itemId      String
-  item        Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  warehouseId String
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  binId       String?
-  bin         Bin?      @relation(fields: [binId], references: [id], onDelete: SetNull)
-  qtyOnHand   Decimal   @db.Decimal(18,4) @default(0)
-  avgCost     Decimal   @db.Decimal(18,4) @default(0)
-  updatedAt   DateTime  @updatedAt
-
-  @@unique([itemId, warehouseId, binId])
-  @@index([itemId])
-  @@index([warehouseId])
-}
-
-// StockLedger (Kartu Stok) Model
-model StockLedger {
-  id            String    @id @default(cuid())
-  ts            DateTime  @default(now())
-  itemId        String
-  item          Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  warehouseId   String
-  warehouse     Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  binId         String?
-  bin           Bin?      @relation(fields: [binId], references: [id], onDelete: SetNull)
-  referenceType String    // IN|OUT|ADJ
-  referenceId   String
-  qtyDelta      Decimal   @db.Decimal(18,4) // + for IN, - for OUT (in base unit)
-  unitCost      Decimal?  @db.Decimal(18,4) // for average valuation updates
-  note          String?   @db.Text
-  createdById   String
-  createdAt     DateTime  @default(now())
-
-  @@index([itemId])
-  @@index([warehouseId])
-  @@index([referenceType])
-  @@index([ts])
-}
-
-// GoodsReceipt (Barang Masuk) Model
-model GoodsReceipt {
-  id              String    @id @default(cuid())
-  docNumber       String    @unique
-  date            DateTime
-  warehouseId     String
-  warehouse       Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  sourceType      String    // PURCHASE|RETURN|PRODUCTION|OTHER|LOAN_RETURN
-  sourceRef       String?   // Reference to source document
-  loanIssueId     String?   // Reference ke GoodsIssue jika ini loan return
-  note            String?   @db.Text
-  
-  // Fields for accounting
-  glStatus        String    @default("PENDING") // PENDING|POSTED|FAILED
-  glPostedAt      DateTime?
-  glEntryId       String?   // Reference ke JournalEntry
-  
-  createdById     String
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  // Relations
-  lines           GoodsReceiptLine[]
-
-  @@index([date])
-  @@index([warehouseId])
-  @@index([sourceType])
-  @@index([loanIssueId])
-}
-
-// GoodsReceiptLine (Detail Barang Masuk) Model
-model GoodsReceiptLine {
-  id              String       @id @default(cuid())
-  receiptId       String
-  receipt         GoodsReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
-  itemId          String
-  item            Item         @relation(fields: [itemId], references: [id], onDelete: Restrict)
-  unitId          String
-  unit            Unit         @relation(fields: [unitId], references: [id], onDelete: Restrict)
-  qty             Decimal      @db.Decimal(18,4)
-  unitCost        Decimal?     @db.Decimal(18,4)
-  note            String?      @db.Text
-  
-  // For loan return tracking
-  loanIssueLineId String?      // Reference ke GoodsIssueLine yang dipinjam
-
-  @@index([receiptId])
-  @@index([itemId])
-  @@index([loanIssueLineId])
-}
-
-// GoodsIssue (Barang Keluar) Model
-model GoodsIssue {
-  id              String    @id @default(cuid())
-  docNumber       String    @unique
-  date            DateTime
-  warehouseId     String
-  warehouse       Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  purpose         String    // ISSUE|LOAN|PROD|SCRAP
-  targetDept      String?
-  pickerName      String?   // Nama pengambil barang
-  status          String    @default("APPROVED") // DRAFT|APPROVED|RETURNED|PARTIAL_RETURN|CANCELLED
-  note            String?   @db.Text
-  
-  // Fields for loan tracking
-  loanReceiver    String?   // Nama peminjam (untuk LOAN)
-  expectedReturnAt DateTime? // Tanggal jatuh tempo pengembalian (untuk LOAN)
-  loanNotes       String?   @db.Text
-  isLoanFullyReturned Boolean @default(false)
-  
-  // Fields for accounting
-  expenseAccountId String?  // ID akun biaya spesifik (untuk ISSUE/SCRAP)
-  costCenter       String?  // Cost center untuk tracking
-  glStatus         String   @default("PENDING") // PENDING|POSTED|FAILED
-  glPostedAt       DateTime?
-  glEntryId        String?  // Reference ke JournalEntry
-  
-  createdById     String
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  // Relations
-  lines           GoodsIssueLine[]
-
-  @@index([date])
-  @@index([warehouseId])
-  @@index([status])
-  @@index([purpose])
-  @@index([glStatus])
-}
-
-// GoodsIssueLine (Detail Barang Keluar) Model
-model GoodsIssueLine {
-  id        String     @id @default(cuid())
-  issueId   String
-  issue     GoodsIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
-  itemId    String
-  item      Item       @relation(fields: [itemId], references: [id], onDelete: Restrict)
-  unitId    String
-  unit      Unit       @relation(fields: [unitId], references: [id], onDelete: Restrict)
-  qty       Decimal    @db.Decimal(18,4)
-  unitCost  Decimal?   @db.Decimal(18,4) // Snapshot biaya saat keluar (untuk audit)
-  note      String?    @db.Text
-  
-  // For loan tracking
-  qtyReturned Decimal  @db.Decimal(18,4) @default(0) // Jumlah yang sudah dikembalikan
-
-  @@index([issueId])
-  @@index([itemId])
-}
-
-// ItemRequest (Pengajuan Barang) Model
-model ItemRequest {
-  id             String   @id @default(cuid())
-  reqNumber      String   @unique
-  date           DateTime
-  requestDept    String
-  reason         String?  @db.Text
-  status         String   @default("DRAFT") // DRAFT|PENDING|APPROVED|REJECTED|FULFILLED|NEED_FUND
-  relatedFunding String?
-  createdById    String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  // Relations
-  lines          ItemRequestLine[]
-
-  @@index([date])
-  @@index([status])
-}
-
-// ItemRequestLine (Detail Pengajuan Barang) Model
-model ItemRequestLine {
-  id         String      @id @default(cuid())
-  requestId  String
-  request    ItemRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  itemId     String
-  item       Item        @relation(fields: [itemId], references: [id], onDelete: Restrict)
-  unitId     String
-  unit       Unit        @relation(fields: [unitId], references: [id], onDelete: Restrict)
-  qty        Decimal     @db.Decimal(18,4)
-
-  @@index([requestId])
-  @@index([itemId])
-}
-
-// ============================================
-// GENERAL LEDGER MODELS - PT PKS
-// ============================================
-
-// JournalEntry Model - Header jurnal umum
-model JournalEntry {
-  id          String    @id @default(cuid())
-  companyId   String
-  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  entryNumber String    @unique // Nomor jurnal otomatis
-  date        DateTime
-  sourceType  String    // "GoodsIssue" | "GoodsReceipt" | "Purchase" | "Sales" | "Manual"
-  sourceId    String?   // ID dokumen sumber (GoodsIssue.id, GoodsReceipt.id, dll)
-  memo        String?   @db.Text
-  status      String    @default("POSTED") // DRAFT|POSTED|VOID
-  postedAt    DateTime? // null = draft; set saat benar2 posting
-  postedById  String?
-  createdById String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  // Relations
-  lines       JournalLine[]
-
-  @@index([companyId, date])
-  @@index([sourceType, sourceId])
-  @@index([status])
-}
-
-// JournalLine Model - Detail baris jurnal
-model JournalLine {
-  id          String       @id @default(cuid())
-  entryId     String
-  entry       JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  accountId   String
-  account     Account      @relation(fields: [accountId], references: [id], onDelete: Restrict)
-  debit       Decimal      @db.Decimal(18,2) @default(0)
-  credit      Decimal      @db.Decimal(18,2) @default(0)
-  
-  // Optional metadata untuk reporting
-  costCenter  String?
-  dept        String?
-  itemId      String?
-  warehouseId String?
-  description String?      @db.Text
-
-  @@index([entryId])
-  @@index([accountId])
-  @@index([costCenter])
+enum DocStatus {
+  DRAFT
+  APPROVED
+  POSTED
 }

@@ -159,6 +159,46 @@ export class SupplierApiClient {
 
     return response.json();
   }
+
+  /**
+   * Update supplier bank information
+   */
+  static async updateBankInfo(
+    id: string,
+    bankData: {
+      bankName: string;
+      bankAccountNo: string;
+      bankAccountName: string;
+    }
+  ): Promise<SupplierApiResponse<Supplier>> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/${id}/bank-info`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(bankData),
+      });
+
+      const result = await response.json();
+
+      console.log("Update Bank Info Response status:", response.status);
+      console.log("Update Bank Info Response data:", result);
+
+      return {
+        ...result,
+        code: String(response.status)
+      };
+    } catch (error) {
+      console.error("Fetch error in updateBankInfo:", error);
+      return {
+        success: false,
+        error: "Network error atau server tidak merespons",
+        details: error instanceof Error ? error.message : "Unknown network error",
+        code: '500'
+      };
+    }
+  }
 }
 
 /**

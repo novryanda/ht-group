@@ -2,39 +2,10 @@
 // WAREHOUSE TRANSACTION TYPES - PT PKS
 // ============================================
 
-// Barang Keluar (Loan/Peminjaman) Types
-export interface WarehouseOutboundDTO {
-  id: string;
-  docNumber: string;
-  date: string;
-  warehouseId: string;
-  warehouseName?: string;
-  purpose: string; // LOAN | ISSUE | PROD | SCRAP
-  targetDept: string;
-  pickerName?: string; // Nama pengambil barang
-  note?: string;
-  status: string; // DRAFT | APPROVED | RETURNED | PARTIAL_RETURN | CANCELLED
-  
-  // Loan tracking fields
-  loanReceiver?: string;
-  expectedReturnAt?: string;
-  loanNotes?: string;
-  isLoanFullyReturned?: boolean;
-  
-  // Accounting fields
-  expenseAccountId?: string;
-  expenseAccountName?: string;
-  costCenter?: string;
-  glStatus?: string; // PENDING | POSTED | FAILED
-  glPostedAt?: string;
-  glEntryId?: string;
-  
-  createdById: string;
-  createdByName?: string;
-  createdAt: string;
-  updatedAt: string;
-  lines: WarehouseOutboundLineDTO[];
-}
+// Barang Keluar (Outbound) Types
+
+export type WarehouseOutboundPurpose = "ISSUE" | "PROD" | "SCRAP" | "LOAN" | "TRANSFER";
+export type WarehouseOutboundStatus = "DRAFT" | "APPROVED" | "POSTED" | "CANCELLED";
 
 export interface WarehouseOutboundLineDTO {
   id: string;
@@ -45,29 +16,33 @@ export interface WarehouseOutboundLineDTO {
   unitId: string;
   unitName?: string;
   qty: number;
-  unitCost?: number; // Snapshot biaya saat keluar
-  qtyReturned?: number; // Untuk tracking barang yang sudah dikembalikan
+  qtyReturned: number;
   note?: string;
 }
 
-export interface CreateWarehouseOutboundDTO {
+export interface WarehouseOutboundDTO {
+  id: string;
+  docNumber: string;
   date: string;
   warehouseId: string;
-  purpose: string;
-  targetDept: string;
+  warehouseName?: string;
+  purpose: WarehouseOutboundPurpose;
+  targetDept?: string;
   pickerName?: string;
-  note?: string;
-  
-  // Loan fields
   loanReceiver?: string;
-  expectedReturnAt?: string;
-  loanNotes?: string;
-  
-  // Accounting fields
-  expenseAccountId?: string;
-  costCenter?: string;
-  
-  lines: CreateWarehouseOutboundLineDTO[];
+  expectedReturnAt?: string | null;
+  loanNotes?: string | null;
+  note?: string | null;
+  expenseAccountId?: string | null;
+  costCenter?: string | null;
+  status: WarehouseOutboundStatus;
+  glStatus?: "PENDING" | "POSTED" | "FAILED";
+  glPostedAt?: string | null;
+  glEntryId?: string | null;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+  lines: WarehouseOutboundLineDTO[];
 }
 
 export interface CreateWarehouseOutboundLineDTO {
@@ -77,15 +52,38 @@ export interface CreateWarehouseOutboundLineDTO {
   note?: string;
 }
 
+export interface CreateWarehouseOutboundDTO {
+  date: string;
+  warehouseId: string;
+  purpose: WarehouseOutboundPurpose;
+  targetDept: string;
+  pickerName?: string;
+  loanReceiver?: string;
+  expectedReturnAt?: string | null;
+  loanNotes?: string | null;
+  note?: string | null;
+  expenseAccountId?: string | null;
+  costCenter?: string | null;
+  lines: CreateWarehouseOutboundLineDTO[];
+}
+
 export interface UpdateWarehouseOutboundDTO {
   date?: string;
   warehouseId?: string;
-  purpose?: string;
+  purpose?: WarehouseOutboundPurpose;
   targetDept?: string;
-  note?: string;
-  status?: string;
+  pickerName?: string | null;
+  loanReceiver?: string | null;
+  expectedReturnAt?: string | null;
+  loanNotes?: string | null;
+  note?: string | null;
+  expenseAccountId?: string | null;
+  costCenter?: string | null;
+  status?: WarehouseOutboundStatus;
   lines?: CreateWarehouseOutboundLineDTO[];
 }
+
+// Barang Keluar (Loan/Peminjaman) Types
 
 // Barang Masuk (Return/Kembalian & New Item) Types
 export interface WarehouseInboundDTO {

@@ -43,6 +43,11 @@ export interface Supplier {
   transportMilikSendiri?: number;
   transportPihak3?: number;
 
+  // BANK INFORMATION (optional, filled from Surat Pernyataan)
+  bankName?: string;
+  bankAccountNo?: string;
+  bankAccountName?: string;
+
   createdAt: Date;
   updatedAt: Date;
 }
