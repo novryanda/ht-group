@@ -19,9 +19,8 @@ export const EmployeeListQuerySchema = z.object({
   sortBy: z.string().optional().transform((val) => val || "createdAt"),
   sortDir: z.enum(["asc", "desc"]).optional().transform((val) => val || "desc"),
   // Filters
-  devisi: z.string().optional(),
-  level: z.string().optional(),
-  jabatan: z.string().optional(),
+  divisiId: z.string().optional(),
+  jabatanId: z.string().optional(),
   companyId: z.string().optional(),
 }).passthrough(); // Allow extra fields
 
@@ -96,10 +95,8 @@ export const EmployeeCreateSchema = z.object({
   alamat_provinsi: z.string().max(100).optional().nullable(),
   pendidikan_terakhir: z.string().max(50).optional().nullable(),
   jurusan: z.string().max(100).optional().nullable(),
-  jabatan: z.string().max(100).optional().nullable(),
-  // ✅ Devisi & Level: free text input (bukan enum)
-  devisi: z.string().max(100).optional().nullable(),
-  level: z.string().max(50).optional().nullable(),
+  divisiId: z.string().optional().nullable(),
+  jabatanId: z.string().optional().nullable(),
   tgl_masuk_kerja: z.coerce.date().optional().nullable(),
   tgl_terakhir_kerja: z.coerce.date().optional().nullable(),
   masa_kerja: z.string().max(50).optional().nullable(),
@@ -142,9 +139,8 @@ export const EmployeeUpdateSchema = z.object({
   alamat_provinsi: z.string().max(100).optional().nullable(),
   pendidikan_terakhir: z.string().max(50).optional().nullable(),
   jurusan: z.string().max(100).optional().nullable(),
-  jabatan: z.string().max(100).optional().nullable(),
-  devisi: z.string().max(100).optional().nullable(),
-  level: z.string().max(50).optional().nullable(),
+  divisiId: z.string().optional().nullable(),
+  jabatanId: z.string().optional().nullable(),
   tgl_masuk_kerja: z.coerce.date().optional().nullable(),
   tgl_terakhir_kerja: z.coerce.date().optional().nullable(),
   masa_kerja: z.string().max(50).optional().nullable(),

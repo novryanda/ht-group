@@ -22,9 +22,8 @@ export class KaryawanRepository {
       search,
       sortBy = "createdAt",
       sortDir = "desc",
-      devisi,
-      level,
-      jabatan,
+      divisiId,
+      jabatanId,
       companyId,
     } = query;
 
@@ -37,15 +36,14 @@ export class KaryawanRepository {
               OR: [
                 { nama: { contains: search, mode: "insensitive" } },
                 { no_nik_ktp: { contains: search, mode: "insensitive" } },
-                { jabatan: { contains: search, mode: "insensitive" } },
-                { devisi: { contains: search, mode: "insensitive" } },
+                { divisi: { name: { contains: search, mode: "insensitive" } } },
+                { jabatan: { name: { contains: search, mode: "insensitive" } } },
               ],
             }
           : {},
         // Filters
-        devisi ? { devisi: { equals: devisi, mode: "insensitive" } } : {},
-        level ? { level: { equals: level, mode: "insensitive" } } : {},
-        jabatan ? { jabatan: { contains: jabatan, mode: "insensitive" } } : {},
+        divisiId ? { divisiId } : {},
+        jabatanId ? { jabatanId } : {},
         companyId ? { companyId } : {},
       ],
     };
@@ -67,6 +65,8 @@ export class KaryawanRepository {
         take,
         orderBy,
         include: {
+          divisi: true,
+          jabatan: true,
           _count: {
             select: {
               EmployeeFamily: true,
@@ -93,6 +93,8 @@ export class KaryawanRepository {
     return db.employee.findUnique({
       where: { id_karyawan: id },
       include: {
+        divisi: true,
+        jabatan: true,
         EmployeeFamily: {
           orderBy: {
             createdAt: "asc",
@@ -203,9 +205,12 @@ export class KaryawanRepository {
           pendidikan_terakhir: data.pendidikan_terakhir,
         }),
         ...(data.jurusan !== undefined && { jurusan: data.jurusan }),
-        ...(data.jabatan !== undefined && { jabatan: data.jabatan }),
-        ...(data.devisi !== undefined && { devisi: data.devisi }),
-        ...(data.level !== undefined && { level: data.level }),
+        ...(data.divisiId !== undefined && {
+          divisiId: data.divisiId ?? null,
+        }),
+        ...(data.jabatanId !== undefined && {
+          jabatanId: data.jabatanId ?? null,
+        }),
         ...(data.tgl_masuk_kerja !== undefined && {
           tgl_masuk_kerja: data.tgl_masuk_kerja ? new Date(data.tgl_masuk_kerja) : null,
         }),
@@ -272,9 +277,8 @@ export class KaryawanRepository {
         alamat_provinsi: data.alamat_provinsi ?? null,
         pendidikan_terakhir: data.pendidikan_terakhir ?? null,
         jurusan: data.jurusan ?? null,
-        jabatan: data.jabatan ?? null,
-        devisi: data.devisi ?? null,
-        level: data.level ?? null,
+        divisiId: data.divisiId ?? null,
+        jabatanId: data.jabatanId ?? null,
         tgl_masuk_kerja: data.tgl_masuk_kerja ? new Date(data.tgl_masuk_kerja) : null,
         tgl_terakhir_kerja: data.tgl_terakhir_kerja ? new Date(data.tgl_terakhir_kerja) : null,
         masa_kerja: data.masa_kerja ?? null,

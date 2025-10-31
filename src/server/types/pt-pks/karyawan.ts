@@ -18,9 +18,8 @@ export interface EmployeeListQuery {
   sortBy?: string;
   sortDir?: "asc" | "desc";
   // Filters
-  devisi?: string;
-  level?: string;
-  jabatan?: string;
+  divisiId?: string;
+  jabatanId?: string;
   companyId?: string;
 }
 
@@ -89,9 +88,10 @@ export interface EmployeeListItemDTO {
   alamat_provinsi: string | null;
   pendidikan_terakhir: string | null;
   jurusan: string | null;
-  jabatan: string | null;
-  devisi: string | null;
-  level: string | null;
+  divisiId: string | null;
+  divisiName?: string | null;
+  jabatanId: string | null;
+  jabatanName?: string | null;
   tgl_masuk_kerja: Date | null;
   tgl_terakhir_kerja: Date | null;
   masa_kerja: string | null;
@@ -128,9 +128,10 @@ export interface EmployeeDTO {
   alamat_provinsi: string | null;
   pendidikan_terakhir: string | null;
   jurusan: string | null;
-  jabatan: string | null;
-  devisi: string | null;
-  level: string | null;
+  divisiId: string | null;
+  divisiName?: string | null;
+  jabatanId: string | null;
+  jabatanName?: string | null;
   tgl_masuk_kerja: Date | null;
   tgl_terakhir_kerja: Date | null;
   masa_kerja: string | null;
@@ -172,9 +173,8 @@ export interface EmployeeCreateDTO {
   alamat_provinsi?: string | null;
   pendidikan_terakhir?: string | null;
   jurusan?: string | null;
-  jabatan?: string | null;
-  devisi?: string | null; // Free text input
-  level?: string | null; // Free text input
+  divisiId?: string | null;
+  jabatanId?: string | null;
   tgl_masuk_kerja?: Date | string | null;
   tgl_terakhir_kerja?: Date | string | null;
   masa_kerja?: string | null;
@@ -208,9 +208,8 @@ export interface EmployeeUpdateDTO {
   alamat_provinsi?: string | null;
   pendidikan_terakhir?: string | null;
   jurusan?: string | null;
-  jabatan?: string | null;
-  devisi?: string | null;
-  level?: string | null;
+  divisiId?: string | null;
+  jabatanId?: string | null;
   tgl_masuk_kerja?: Date | string | null;
   tgl_terakhir_kerja?: Date | string | null;
   masa_kerja?: string | null;

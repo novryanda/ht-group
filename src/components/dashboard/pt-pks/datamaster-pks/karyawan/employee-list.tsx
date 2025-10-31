@@ -18,6 +18,13 @@ import {
   AlertDialogTitle,
 } from "~/components/ui/alert-dialog";
 import { Search, Users, Eye, Plus, Settings2, Pencil, Trash2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 import { toast } from "sonner";
 import { FamilyDetailSheet } from "./family-detail-sheet";
 import { FamilyFormModal } from "./family-form-modal";
@@ -35,9 +42,10 @@ export function EmployeeList() {
   const [employees, setEmployees] = useState<EmployeeListItemDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  // ✅ Changed to free text input (not Select with sentinel value)
-  const [devisiFilter, setDevisiFilter] = useState<string>("");
-  const [levelFilter, setLevelFilter] = useState<string>("");
+  const [divisiList, setDivisiList] = useState<Array<{ id: string; name: string }>>([]);
+  const [jabatanList, setJabatanList] = useState<Array<{ id: string; name: string; divisiId: string }>>([]);
+  const [divisiIdFilter, setDivisiIdFilter] = useState<string>("");
+  const [jabatanIdFilter, setJabatanIdFilter] = useState<string>("");
   const [pagination, setPagination] = useState<PaginationState>({
     page: 1,
     pageSize: 10,
@@ -83,9 +91,8 @@ export function EmployeeList() {
     alamat_provinsi: false,
     pendidikan_terakhir: false,
     jurusan: false,
-    jabatan: true,
-    devisi: true,
-    level: true,
+    divisiName: true,
+    jabatanName: true,
     tgl_masuk_kerja: true,
     tgl_terakhir_kerja: false,
     masa_kerja: false,
@@ -106,9 +113,8 @@ export function EmployeeList() {
         page: pagination.page.toString(),
         pageSize: pagination.pageSize.toString(),
         ...(searchTerm && { search: searchTerm }),
-        // ✅ Free text filter - add if not empty
-        ...(devisiFilter && { devisi: devisiFilter }),
-        ...(levelFilter && { level: levelFilter }),
+        ...(divisiIdFilter && { divisiId: divisiIdFilter }),
+        ...(jabatanIdFilter && { jabatanId: jabatanIdFilter }),
       });
 
       const response = await fetch(`/api/pt-pks/karyawan?${params}`);
@@ -127,7 +133,43 @@ export function EmployeeList() {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.pageSize, searchTerm, devisiFilter, levelFilter]);
+  }, [pagination.page, pagination.pageSize, searchTerm, divisiIdFilter, jabatanIdFilter]);
+
+  // Load divisi list for filter
+  useEffect(() => {
+    fetch("/api/pt-pks/divisi/active")
+      .then((res) => res.json())
+      .then((result) => {
+        if (result.success && result.data) {
+          setDivisiList(result.data);
+        }
+      })
+      .catch((error) => {
+        console.error("Error loading divisi:", error);
+      });
+  }, []);
+
+  // Load jabatan list when divisi filter is selected
+  useEffect(() => {
+    if (divisiIdFilter) {
+      fetch(`/api/pt-pks/jabatan/active?divisiId=${divisiIdFilter}`)
+        .then((res) => res.json())
+        .then((result) => {
+          if (result.success && result.data) {
+            setJabatanList(result.data);
+          } else {
+            setJabatanList([]);
+          }
+        })
+        .catch((error) => {
+          console.error("Error loading jabatan:", error);
+          setJabatanList([]);
+        });
+    } else {
+      setJabatanList([]);
+      setJabatanIdFilter("");
+    }
+  }, [divisiIdFilter]);
 
   useEffect(() => {
     void loadEmployees();
@@ -326,31 +368,52 @@ export function EmployeeList() {
             <div className="relative flex-1">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Cari nama, NIK, jabatan, devisi..."
+                placeholder="Cari nama, NIK, divisi, jabatan..."
                 value={searchTerm}
                 onChange={(e) => handleSearch(e.target.value)}
                 className="pl-8"
               />
             </div>
-            {/* ✅ Changed to free text Input (not Select) */}
-            <Input
-              placeholder="Filter Divisi"
-              value={devisiFilter}
-              onChange={(e) => {
-                setDevisiFilter(e.target.value);
+            <Select
+              value={divisiIdFilter}
+              onValueChange={(value) => {
+                setDivisiIdFilter(value);
+                setJabatanIdFilter("");
                 setPagination((prev) => ({ ...prev, page: 1 }));
               }}
-              className="w-full sm:w-[200px]"
-            />
-            <Input
-              placeholder="Filter Level"
-              value={levelFilter}
-              onChange={(e) => {
-                setLevelFilter(e.target.value);
+            >
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Filter Divisi" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Semua Divisi</SelectItem>
+                {divisiList.map((divisi) => (
+                  <SelectItem key={divisi.id} value={divisi.id}>
+                    {divisi.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={jabatanIdFilter}
+              onValueChange={(value) => {
+                setJabatanIdFilter(value);
                 setPagination((prev) => ({ ...prev, page: 1 }));
               }}
-              className="w-full sm:w-[200px]"
-            />
+              disabled={!divisiIdFilter}
+            >
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder={divisiIdFilter ? "Filter Jabatan" : "Pilih divisi dulu"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Semua Jabatan</SelectItem>
+                {jabatanList.map((jabatan) => (
+                  <SelectItem key={jabatan.id} value={jabatan.id}>
+                    {jabatan.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -432,9 +495,8 @@ export function EmployeeList() {
                     {visibleColumns.alamat_provinsi && <TableHead className="min-w-[120px]">Provinsi</TableHead>}
                     {visibleColumns.pendidikan_terakhir && <TableHead className="min-w-[120px]">Pendidikan</TableHead>}
                     {visibleColumns.jurusan && <TableHead className="min-w-[120px]">Jurusan</TableHead>}
-                    {visibleColumns.jabatan && <TableHead className="min-w-[120px]">Jabatan</TableHead>}
-                    {visibleColumns.devisi && <TableHead className="min-w-[120px]">Divisi</TableHead>}
-                    {visibleColumns.level && <TableHead className="min-w-[100px]">Level</TableHead>}
+                    {visibleColumns.divisiName && <TableHead className="min-w-[120px]">Divisi</TableHead>}
+                    {visibleColumns.jabatanName && <TableHead className="min-w-[120px]">Jabatan</TableHead>}
                     {visibleColumns.tgl_masuk_kerja && <TableHead className="min-w-[120px]">TMK</TableHead>}
                     {visibleColumns.tgl_terakhir_kerja && <TableHead className="min-w-[120px]">Tgl Keluar</TableHead>}
                     {visibleColumns.masa_kerja && <TableHead className="min-w-[120px]">Masa Kerja</TableHead>}
@@ -486,9 +548,8 @@ export function EmployeeList() {
                         {visibleColumns.alamat_provinsi && <TableCell>{employee.alamat_provinsi || "-"}</TableCell>}
                         {visibleColumns.pendidikan_terakhir && <TableCell>{employee.pendidikan_terakhir || "-"}</TableCell>}
                         {visibleColumns.jurusan && <TableCell>{employee.jurusan || "-"}</TableCell>}
-                        {visibleColumns.jabatan && <TableCell>{employee.jabatan || "-"}</TableCell>}
-                        {visibleColumns.devisi && <TableCell>{employee.devisi || "-"}</TableCell>}
-                        {visibleColumns.level && <TableCell><Badge variant="outline">{employee.level || "-"}</Badge></TableCell>}
+                        {visibleColumns.divisiName && <TableCell>{employee.divisiName || "-"}</TableCell>}
+                        {visibleColumns.jabatanName && <TableCell>{employee.jabatanName || "-"}</TableCell>}
                         {visibleColumns.tgl_masuk_kerja && <TableCell>{formatDate(employee.tgl_masuk_kerja)}</TableCell>}
                         {visibleColumns.tgl_terakhir_kerja && <TableCell>{formatDate(employee.tgl_terakhir_kerja)}</TableCell>}
                         {visibleColumns.masa_kerja && <TableCell>{employee.masa_kerja || "-"}</TableCell>}

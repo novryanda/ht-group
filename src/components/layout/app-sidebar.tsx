@@ -95,6 +95,7 @@ import {
   BookOpen,
   TrendingUp,
   Check,
+  ShoppingCart,
 } from "lucide-react";
 
 // Define types for navigation
@@ -265,10 +266,11 @@ const ptNavigationData: Record<string, PTNavigationData> = {
           { title: "Buyer", url: "/dashboard/pt-pks/datamaster/buyer", icon: Users },
           { title: "Transportir", url: "/dashboard/pt-pks/datamaster/transportir", icon: Truck },
           { title: "Material & Inventory", url: "/dashboard/pt-pks/datamaster/material-inventory", icon: Package },
+          { title: "Divisi", url: "/dashboard/pt-pks/datamaster/divisi", icon: Building2 },
           { title: "Karyawan", url: "/dashboard/pt-pks/datamaster/karyawan", icon: User },
         ],
       },
-      {title: "Payroll", 
+      {title: "HR & Payroll", 
         icon: Users, 
         items: [
         { title: "Payroll", url: "/dashboard/pt-pks/payroll", icon: Users },
@@ -303,6 +305,8 @@ const ptNavigationData: Record<string, PTNavigationData> = {
         icon: ArrowLeftRightIcon,
         items: [
           { title: "Transaksi Gudang", url: "/dashboard/pt-pks/transaksi-pks/transaksi-gudang", icon: Package },
+          { title: "Pemasaran Produk", url: "/dashboard/pt-pks/transaksi-pks/pemasaran-produk", icon: ShoppingCart },
+          { title: "Pengiriman Produk", url: "/dashboard/pt-pks/transaksi-pks/pengiriman-produk", icon: Truck},
           { title: "Permintaan Dana", url: "/dashboard/pt-pks/transaksi-pks/permintaan-dana", icon: Calculator },
           { title: "Pembayaran Produksi Harian", url: "/dashboard/pt-pks/transaksi-pks/produksi-harian", icon: Receipt },
         ],

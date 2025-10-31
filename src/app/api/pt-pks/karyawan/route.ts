@@ -32,9 +32,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search");
     const sortBy = searchParams.get("sortBy");
     const sortDir = searchParams.get("sortDir");
-    const devisi = searchParams.get("devisi");
-    const level = searchParams.get("level");
-    const jabatan = searchParams.get("jabatan");
+    const divisiId = searchParams.get("divisiId");
+    const jabatanId = searchParams.get("jabatanId");
     const companyId = searchParams.get("companyId");
 
     if (page) query.page = page;
@@ -42,9 +41,8 @@ export async function GET(request: NextRequest) {
     if (search) query.search = search;
     if (sortBy) query.sortBy = sortBy;
     if (sortDir) query.sortDir = sortDir;
-    if (devisi) query.devisi = devisi;
-    if (level) query.level = level;
-    if (jabatan) query.jabatan = jabatan;
+    if (divisiId) query.divisiId = divisiId;
+    if (jabatanId) query.jabatanId = jabatanId;
     if (companyId) query.companyId = companyId;
 
     const result = await KaryawanAPI.listKaryawan(query);

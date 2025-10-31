@@ -139,9 +139,8 @@ export function PBHarianTable({ companyId }: { companyId: string }) {
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   
-  // Filters
-  const [startDate, setStartDate] = useState<Date>();
-  const [endDate, setEndDate] = useState<Date>();
+  // Single date filter
+  const [selectedDate, setSelectedDate] = useState<Date>();
 
   useEffect(() => {
     void fetchLookups();
@@ -150,7 +149,7 @@ export function PBHarianTable({ companyId }: { companyId: string }) {
 
   useEffect(() => {
     void fetchSavedTickets();
-  }, [startDate, endDate]);
+  }, [selectedDate]);
 
   const fetchLookups = async () => {
     setLoading(true);
@@ -179,8 +178,10 @@ export function PBHarianTable({ companyId }: { companyId: string }) {
   const fetchSavedTickets = async () => {
     try {
       const params = new URLSearchParams({ companyId });
-      if (startDate) params.set("startDate", format(startDate, "yyyy-MM-dd"));
-      if (endDate) params.set("endDate", format(endDate, "yyyy-MM-dd"));
+      if (selectedDate) {
+        params.set("startDate", format(selectedDate, "yyyy-MM-dd"));
+        params.set("endDate", format(selectedDate, "yyyy-MM-dd"));
+      }
 
       const res = await fetch(`/api/pt-pks/pb-harian?${params.toString()}`);
       const data = (await res.json()) as { success: boolean; data: SavedTicket[] };
@@ -194,8 +195,8 @@ export function PBHarianTable({ companyId }: { companyId: string }) {
   };
 
   const addRow = async () => {
-    // Gunakan startDate filter jika ada, jika tidak pakai hari ini
-  const tanggalBaru = startDate ? format(startDate, "yyyy-MM-dd") : new Date().toISOString().split("T")[0] || "";
+    // Gunakan selectedDate filter jika ada, jika tidak pakai hari ini
+    const tanggalBaru = selectedDate ? format(selectedDate, "yyyy-MM-dd") : new Date().toISOString().split("T")[0] || "";
     const now = new Date().toISOString().slice(0, 16);
     let autoNoSeri = "";
     try {
@@ -450,44 +451,26 @@ export function PBHarianTable({ companyId }: { companyId: string }) {
               {saving ? "Menyimpan..." : `Simpan Semua (${rows.length})`}
             </Button>
           )}
-          </div>
-        
-        {/* Date Filters */}
+        </div>
+
+        {/* Single Date Filter */}
         <div className="flex items-center gap-2">
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm">
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {startDate ? format(startDate, "dd/MM/yyyy") : "Dari Tanggal"}
+                {selectedDate ? format(selectedDate, "dd/MM/yyyy") : "Pilih Tanggal"}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
               <Calendar
                 mode="single"
-                selected={startDate}
-                onSelect={setStartDate}
+                selected={selectedDate}
+                onSelect={setSelectedDate}
                 initialFocus
               />
             </PopoverContent>
           </Popover>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {endDate ? format(endDate, "dd/MM/yyyy") : "Sampai Tanggal"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="single"
-                selected={endDate}
-                onSelect={setEndDate}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-
           <Button onClick={fetchSavedTickets} size="sm" variant="outline">
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh

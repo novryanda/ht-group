@@ -50,10 +50,8 @@ const employeeFormSchema = z.object({
   alamat_provinsi: z.string().max(100).optional(),
   pendidikan_terakhir: z.string().max(50).optional(),
   jurusan: z.string().max(100).optional(),
-  jabatan: z.string().max(100).optional(),
-  // ✅ Free text input (bukan enum)
-  devisi: z.string().max(100).optional(),
-  level: z.string().max(50).optional(),
+  divisiId: z.string().optional(),
+  jabatanId: z.string().optional(),
   tgl_masuk_kerja: z.string().optional(), // ISO date string
   tgl_terakhir_kerja: z.string().optional(), // ISO date string
   masa_kerja: z.string().max(50).optional(),
@@ -86,6 +84,8 @@ interface EmployeeFormModalProps {
 export function EmployeeFormModal({ open, onOpenChange, onSuccess, employeeId }: EmployeeFormModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
+  const [divisiList, setDivisiList] = useState<Array<{ id: string; name: string }>>([]);
+  const [jabatanList, setJabatanList] = useState<Array<{ id: string; name: string; divisiId: string }>>([]);
   const isEditMode = !!employeeId;
 
   const form = useForm({
@@ -109,9 +109,8 @@ export function EmployeeFormModal({ open, onOpenChange, onSuccess, employeeId }:
       alamat_provinsi: "",
       pendidikan_terakhir: "",
       jurusan: "",
-      jabatan: "",
-      devisi: "",
-      level: "",
+      divisiId: "",
+      jabatanId: "",
       tgl_masuk_kerja: "",
       tgl_terakhir_kerja: "",
       masa_kerja: "",
@@ -124,6 +123,45 @@ export function EmployeeFormModal({ open, onOpenChange, onSuccess, employeeId }:
       perusahaan_sebelumnya: "",
     },
   });
+
+  // Load divisi list
+  useEffect(() => {
+    if (open) {
+      fetch("/api/pt-pks/divisi/active")
+        .then((res) => res.json())
+        .then((result) => {
+          if (result.success && result.data) {
+            setDivisiList(result.data);
+          }
+        })
+        .catch((error) => {
+          console.error("Error loading divisi:", error);
+        });
+    }
+  }, [open]);
+
+  // Load jabatan list when divisi is selected
+  const selectedDivisiId = form.watch("divisiId");
+  useEffect(() => {
+    if (selectedDivisiId) {
+      fetch(`/api/pt-pks/jabatan/active?divisiId=${selectedDivisiId}`)
+        .then((res) => res.json())
+        .then((result) => {
+          if (result.success && result.data) {
+            setJabatanList(result.data);
+          } else {
+            setJabatanList([]);
+          }
+        })
+        .catch((error) => {
+          console.error("Error loading jabatan:", error);
+          setJabatanList([]);
+        });
+    } else {
+      setJabatanList([]);
+      form.setValue("jabatanId", "");
+    }
+  }, [selectedDivisiId, form]);
 
   // Load employee data in edit mode
   useEffect(() => {
@@ -159,9 +197,8 @@ export function EmployeeFormModal({ open, onOpenChange, onSuccess, employeeId }:
               alamat_provinsi: emp.alamat_provinsi || "",
               pendidikan_terakhir: emp.pendidikan_terakhir || "",
               jurusan: emp.jurusan || "",
-              jabatan: emp.jabatan || "",
-              devisi: emp.devisi || "",
-              level: emp.level || "",
+              divisiId: emp.divisiId || "",
+              jabatanId: emp.jabatanId || "",
               tgl_masuk_kerja: formatDateForInput(emp.tgl_masuk_kerja),
               tgl_terakhir_kerja: formatDateForInput(emp.tgl_terakhir_kerja),
               masa_kerja: emp.masa_kerja || "",
@@ -424,22 +461,53 @@ export function EmployeeFormModal({ open, onOpenChange, onSuccess, employeeId }:
             <h3 className="text-sm font-semibold">Data Pekerjaan</h3>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {/* Jabatan */}
+              {/* Divisi - SELECT */}
               <div className="space-y-2">
-                <Label htmlFor="jabatan">Jabatan</Label>
-                <Input id="jabatan" {...form.register("jabatan")} placeholder="Masukkan jabatan" />
+                <Label htmlFor="divisiId">Divisi</Label>
+                <Select
+                  value={form.watch("divisiId")}
+                  onValueChange={(value) => {
+                    form.setValue("divisiId", value);
+                    form.setValue("jabatanId", ""); // Reset jabatan when divisi changes
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih divisi" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {/* Placeholder handled by SelectValue, do not add empty value item */}
+                    {divisiList.map((divisi) => (
+                      <SelectItem key={divisi.id} value={divisi.id}>
+                        {divisi.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* Devisi - FREE TEXT INPUT */}
+              {/* Jabatan - SELECT (depends on divisi) */}
               <div className="space-y-2">
-                <Label htmlFor="devisi">Divisi</Label>
-                <Input id="devisi" {...form.register("devisi")} placeholder="Masukkan divisi" />
-              </div>
-
-              {/* Level - FREE TEXT INPUT */}
-              <div className="space-y-2">
-                <Label htmlFor="level">Level</Label>
-                <Input id="level" {...form.register("level")} placeholder="Masukkan level" />
+                <Label htmlFor="jabatanId">Jabatan</Label>
+                <Select
+                  value={form.watch("jabatanId")}
+                  onValueChange={(value) => form.setValue("jabatanId", value)}
+                  disabled={!selectedDivisiId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={selectedDivisiId ? "Pilih jabatan" : "Pilih divisi terlebih dahulu"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {/* Placeholder handled by SelectValue, do not add empty value item */}
+                    {jabatanList.map((jabatan) => (
+                      <SelectItem key={jabatan.id} value={jabatan.id}>
+                        {jabatan.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!selectedDivisiId && (
+                  <p className="text-xs text-muted-foreground">Pilih divisi terlebih dahulu</p>
+                )}
               </div>
 
               {/* Tanggal Masuk Kerja */}

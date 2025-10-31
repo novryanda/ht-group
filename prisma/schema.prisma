@@ -23,6 +23,8 @@ model Company {
   systemAccountMaps SystemAccountMap[]
   WeighbridgeTicket WeighbridgeTicket[]
   employees         Employee[]
+  divisi            Divisi[]
+  jabatan           Jabatan[]
 }
 
 model Employee {
@@ -44,9 +46,8 @@ model Employee {
   alamat_provinsi       String?          @db.VarChar(100)
   pendidikan_terakhir   String?          @db.VarChar(50)
   jurusan               String?          @db.VarChar(100)
-  jabatan               String?          @db.VarChar(100)
-  devisi                String?          @db.VarChar(100)
-  level                 String?          @db.VarChar(50)
+  divisiId              String?
+  jabatanId             String?
   tgl_masuk_kerja       DateTime?
   tgl_terakhir_kerja    DateTime?
   masa_kerja            String?          @db.VarChar(50)
@@ -65,8 +66,54 @@ model Employee {
   EmployeeFamily        EmployeeFamily[]
   company               Company?         @relation(fields: [companyId], references: [id])
   user                  User?            @relation(fields: [userId], references: [id])
+  divisi                Divisi?          @relation(fields: [divisiId], references: [id])
+  jabatan               Jabatan?         @relation(fields: [jabatanId], references: [id])
 
+  @@index([divisiId])
+  @@index([jabatanId])
   @@map("karyawan")
+}
+
+model Divisi {
+  id        String    @id @default(cuid())
+  companyId String
+  code      String
+  name      String
+  description String? @db.VarChar(300)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  company   Company   @relation(fields: [companyId], references: [id])
+  jabatan   Jabatan[]
+  employees Employee[]
+
+  @@unique([code, companyId])
+  @@index([companyId])
+  @@index([name])
+  @@index([isActive])
+  @@map("divisi")
+}
+
+model Jabatan {
+  id          String    @id @default(cuid())
+  companyId   String
+  divisiId    String
+  code        String
+  name        String
+  description String?   @db.VarChar(300)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  company     Company   @relation(fields: [companyId], references: [id])
+  divisi      Divisi    @relation(fields: [divisiId], references: [id], onDelete: Cascade)
+  employees   Employee[]
+
+  @@unique([code, divisiId, companyId])
+  @@index([companyId])
+  @@index([divisiId])
+  @@index([name])
+  @@index([isActive])
+  @@map("jabatan")
 }
 
 model EmployeeFamily {
