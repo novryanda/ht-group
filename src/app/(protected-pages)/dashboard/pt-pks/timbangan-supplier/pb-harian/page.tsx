@@ -19,7 +19,7 @@ export default async function PBHarianPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">PB Harian</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Timbangan Supplier</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Data perusahaan PT Perkebunan Sawit tidak ditemukan. Pastikan database telah di-seed.
           </p>

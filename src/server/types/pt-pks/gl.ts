@@ -20,7 +20,7 @@ export interface GLAccountMapping {
 export interface GLPostingContext {
   companyId: string;
   date: Date;
-  sourceType: "GoodsIssue" | "GoodsReceipt" | "StockAdjustment";
+  sourceType: "GoodsIssue" | "GoodsReceipt" | "StockAdjustment" | "WeighbridgeApproval";
   sourceId: string;
   sourceNumber: string;
   memo?: string;

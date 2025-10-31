@@ -9,6 +9,7 @@ import { Prisma } from "@prisma/client";
 export class GoodsReceiptService {
   /**
    * Get all goods receipts dengan pagination dan filter
+   * Includes weighbridge tickets that are APPROVED
    */
   static async list(query: WarehouseTransactionQuery, companyId: string) {
     const {
@@ -34,7 +35,8 @@ export class GoodsReceiptService {
       where.warehouseId = warehouseId;
     }
 
-    if (sourceType) {
+    // Only filter sourceType for goods receipts, not for weighbridge tickets
+    if (sourceType && sourceType !== "WEIGHBRIDGE_APPROVED") {
       where.sourceType = sourceType;
     }
 
@@ -44,7 +46,8 @@ export class GoodsReceiptService {
       if (endDate) where.date.lte = new Date(endDate);
     }
 
-    const [items, total] = await Promise.all([
+    // Get goods receipts
+    const [goodsReceipts, goodsReceiptTotal] = await Promise.all([
       db.goodsReceipt.findMany({
         where,
         include: {
@@ -63,8 +66,137 @@ export class GoodsReceiptService {
       db.goodsReceipt.count({ where }),
     ]);
 
+    // Get approved weighbridge tickets
+    const weighbridgeWhere: Prisma.WeighbridgeTicketWhereInput = {
+      companyId,
+      status: "APPROVED",
+    };
+
+    if (startDate || endDate) {
+      weighbridgeWhere.tanggal = {};
+      if (startDate) weighbridgeWhere.tanggal.gte = new Date(startDate);
+      if (endDate) weighbridgeWhere.tanggal.lte = new Date(endDate);
+    }
+
+    // Filter by search in weighbridge tickets
+    if (search) {
+      weighbridgeWhere.OR = [
+        { noSeri: { contains: search, mode: "insensitive" } },
+        { supplier: { namaPemilik: { contains: search, mode: "insensitive" } } },
+      ];
+    }
+
+    // Get approved tickets with stock ledger to find warehouse
+    const approvedTickets = await db.weighbridgeTicket.findMany({
+      where: weighbridgeWhere,
+      include: {
+        supplier: true,
+        item: {
+          include: {
+            category: true,
+            baseUnit: true,
+          },
+        },
+      },
+      orderBy: { tanggal: "desc" },
+    });
+
+    // Get warehouse info for each ticket from stock ledger or stock balance
+    // Use stock ledger to find warehouse where the ticket was received
+    const ticketIds = approvedTickets.map((t) => t.id);
+    const ticketWarehouses = await db.stockLedger.findMany({
+      where: {
+        referenceType: "IN",
+        referenceId: { in: ticketIds },
+      },
+      include: {
+        warehouse: true,
+      },
+      distinct: ["referenceId"],
+    });
+
+    const warehouseMap = new Map(
+      ticketWarehouses.map((sl) => [sl.referenceId ?? "", sl.warehouse])
+    );
+
+    // Map weighbridge tickets to goods receipt format
+    const weighbridgeReceipts = approvedTickets
+      .filter((ticket) => {
+        // Filter by warehouse if specified
+        const warehouse = warehouseMap.get(ticket.id);
+        if (warehouseId && warehouse?.id !== warehouseId) {
+          return false;
+        }
+        // Only include tickets that have warehouse (have been received)
+        return !!warehouse;
+      })
+      .map((ticket) => {
+        const warehouse = warehouseMap.get(ticket.id);
+        if (!warehouse) return null;
+
+        // Map to goods receipt-like format
+        return {
+          id: `wb_${ticket.id}`,
+          docNumber: ticket.noSeri,
+          date: ticket.tanggal,
+          warehouseId: warehouse.id,
+          warehouse: {
+            id: warehouse.id,
+            name: warehouse.name,
+            code: warehouse.code,
+          },
+          sourceType: "WEIGHBRIDGE_APPROVED",
+          sourceRef: `No. Seri: ${ticket.noSeri}`,
+          note: `Supplier: ${ticket.supplier?.namaPemilik ?? "-"}`,
+          glStatus: "POSTED" as const,
+          createdById: ticket.createdById,
+          createdAt: ticket.createdAt,
+          updatedAt: ticket.updatedAt,
+          lines: [
+            {
+              id: `wb_line_${ticket.id}`,
+              itemId: ticket.itemId,
+              item: ticket.item
+                ? {
+                    id: ticket.item.id,
+                    sku: ticket.item.sku,
+                    name: ticket.item.name,
+                    category: ticket.item.category,
+                  }
+                : null,
+              unitId: ticket.item?.baseUnitId ?? "",
+              unit: ticket.item?.baseUnit
+                ? {
+                    id: ticket.item.baseUnit.id,
+                    code: ticket.item.baseUnit.code,
+                    name: ticket.item.baseUnit.name,
+                  }
+                : null,
+              qty: Number(ticket.beratTerima),
+              unitCost: Number(ticket.hargaPerKg),
+              note: `Supplier: ${ticket.supplier?.namaPemilik ?? "-"}`,
+            },
+          ],
+          // Additional fields for display
+          supplier: ticket.supplier,
+          beratTerima: ticket.beratTerima,
+          hargaPerKg: ticket.hargaPerKg,
+          totalPembayaranSupplier: ticket.totalPembayaranSupplier,
+        };
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null);
+
+    // Combine and sort by date
+    const allReceipts = [...goodsReceipts, ...weighbridgeReceipts].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
+    // Apply pagination to combined results
+    const paginatedReceipts = allReceipts.slice((page - 1) * limit, page * limit);
+    const total = allReceipts.length;
+
     return {
-      data: items,
+      data: paginatedReceipts,
       meta: {
         page,
         limit,

@@ -60,6 +60,7 @@ export async function GET(request: NextRequest) {
         | "APPROVED"
         | "POSTED"
         | undefined,
+      // Don't filter by status if not provided - show all statuses
       page: searchParams.get("page") ?? "1",
       pageSize: searchParams.get("pageSize") ?? "20",
     };

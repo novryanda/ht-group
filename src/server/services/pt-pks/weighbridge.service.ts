@@ -19,6 +19,8 @@ import type {
   ItemLookupDTO,
 } from "~/server/types/pt-pks/weighbridge";
 import type { Prisma } from "@prisma/client";
+import { db } from "~/server/db";
+import { GLService } from "~/server/services/pt-pks/gl.service";
 
 export class WeighbridgeService {
   /**
@@ -203,6 +205,182 @@ export class WeighbridgeService {
     }
 
     await WeighbridgeRepository.delete(id);
+  }
+
+  /**
+   * Post ticket: move from DRAFT to POSTED (awaiting approval)
+   */
+  static async postTicket(id: string): Promise<WeighbridgeTicketDTO> {
+    const ticket = await WeighbridgeRepository.findById(id);
+    if (!ticket) {
+      throw new Error("Tiket tidak ditemukan");
+    }
+    if (ticket.status !== "DRAFT") {
+      throw new Error("Hanya tiket dengan status DRAFT yang dapat diposting");
+    }
+    if (Number(ticket.totalPembayaranSupplier) <= 0) {
+      throw new Error("Total pembayaran supplier belum valid");
+    }
+
+    const updated = await WeighbridgeRepository.updateStatus(id, "POSTED");
+    const updatedTicket = await WeighbridgeRepository.findById(updated.id);
+    if (!updatedTicket) throw new Error("Gagal memperbarui status tiket");
+    return WeighbridgeMapper.toDTO(updatedTicket);
+  }
+
+  /**
+   * Bulk post tickets
+   */
+  static async bulkPostTickets(ticketIds: string[]): Promise<{ success: number; failed: number; errors: string[] }> {
+    let success = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (const id of ticketIds) {
+      try {
+        await this.postTicket(id);
+        success++;
+      } catch (error) {
+        failed++;
+        errors.push(`Tiket ${id}: ${error instanceof Error ? error.message : "Unknown error"}`);
+      }
+    }
+
+    return { success, failed, errors };
+  }
+
+  /**
+   * Approve ticket: set APPROVED, update stock, and post GL using system mappings
+   */
+  static async approveTicket(id: string, approved: boolean, createdById: string, warehouseId?: string): Promise<{ success: boolean; message?: string }> {
+    const ticket = await WeighbridgeRepository.findById(id);
+    if (!ticket) {
+      throw new Error("Tiket tidak ditemukan");
+    }
+    if (ticket.status !== "POSTED") {
+      throw new Error("Hanya tiket dengan status POSTED yang dapat di-approve");
+    }
+
+    if (!approved) {
+      await WeighbridgeRepository.updateStatus(id, "DRAFT");
+      return { success: true, message: "Tiket dikembalikan ke DRAFT" };
+    }
+
+    // Validate warehouse
+    if (!warehouseId) {
+      throw new Error("Gudang harus dipilih sebelum approve");
+    }
+
+    const warehouse = await db.warehouse.findUnique({ 
+      where: { id: warehouseId },
+    });
+    if (!warehouse || !warehouse.isActive) {
+      throw new Error("Gudang tidak ditemukan atau tidak aktif");
+    }
+
+    // Update stock: increase qty by beratTerima with unit cost hargaPerKg
+    await db.$transaction(async (tx) => {
+      // Upsert stock balance
+      const balance = await tx.stockBalance.findFirst({
+        where: { itemId: ticket.itemId, warehouseId: warehouse.id },
+      });
+      const qty = Number(ticket.beratTerima);
+      const unitCost = Number(ticket.hargaPerKg);
+
+      if (balance) {
+        const newQty = Number(balance.qtyOnHand) + qty;
+        // Weighted avg cost update
+        const oldValue = Number(balance.qtyOnHand) * Number(balance.avgCost);
+        const newValue = qty * unitCost;
+        const newAvg = newQty > 0 ? (oldValue + newValue) / newQty : unitCost;
+        await tx.stockBalance.update({
+          where: { id: balance.id },
+          data: { qtyOnHand: newQty, avgCost: newAvg },
+        });
+      } else {
+        await tx.stockBalance.create({
+          data: {
+            itemId: ticket.itemId,
+            warehouseId: warehouse.id,
+            binId: null,
+            qtyOnHand: qty,
+            avgCost: unitCost,
+          },
+        });
+      }
+
+      // Stock ledger
+      await tx.stockLedger.create({
+        data: {
+          itemId: ticket.itemId,
+          warehouseId: warehouse.id,
+          referenceType: "IN",
+          referenceId: ticket.id,
+          qtyDelta: qty,
+          unitCost,
+          note: `Weighbridge approval noSeri ${ticket.noSeri}`,
+          createdById,
+        },
+      });
+
+      // Update ticket status
+      await tx.weighbridgeTicket.update({ where: { id: ticket.id }, data: { status: "APPROVED" } });
+    });
+
+    // Post simple GL: Debit INVENTORY_TBS, Credit AP_SUPPLIER_TBS
+    try {
+      const glService = new GLService();
+      const inventoryAccountId = await glService.getSystemAccountId(ticket.companyId, "INVENTORY_TBS");
+      const apAccountId = await glService.getSystemAccountId(ticket.companyId, "AP_SUPPLIER_TBS");
+
+      if (inventoryAccountId && apAccountId) {
+        const amount = Number(ticket.totalPembayaranSupplier);
+        await glService.postJournalEntry(
+          {
+            companyId: ticket.companyId,
+            date: new Date(ticket.tanggal),
+            sourceType: "WeighbridgeApproval",
+            sourceId: ticket.id,
+            sourceNumber: ticket.noSeri,
+            createdById,
+            memo: `Approval Timbangan Supplier ${ticket.noSeri}`,
+          },
+          [
+            { accountId: inventoryAccountId, debit: amount, credit: 0, warehouseId: undefined, description: "Persediaan TBS" },
+            { accountId: apAccountId, debit: 0, credit: amount, description: "Hutang Supplier TBS" },
+          ]
+        );
+      }
+    } catch (e) {
+      console.error("GL posting for weighbridge approval failed:", e);
+      // Continue without failing approval
+    }
+
+    return { success: true, message: "Tiket berhasil di-approve" };
+  }
+
+  /**
+   * Bulk approve tickets
+   */
+  static async bulkApproveTickets(
+    ticketData: Array<{ ticketId: string; warehouseId: string }>,
+    createdById: string
+  ): Promise<{ success: number; failed: number; errors: string[] }> {
+    let success = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (const { ticketId, warehouseId } of ticketData) {
+      try {
+        await this.approveTicket(ticketId, true, createdById, warehouseId);
+        success++;
+      } catch (error) {
+        failed++;
+        errors.push(`Tiket ${ticketId}: ${error instanceof Error ? error.message : "Unknown error"}`);
+      }
+    }
+
+    return { success, failed, errors };
   }
 
   /**

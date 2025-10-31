@@ -292,8 +292,9 @@ const ptNavigationData: Record<string, PTNavigationData> = {
         title: "Timbangan",
         icon: Scale,
         items: [
-          { title: "Timbangan", url: "/dashboard/pt-pks/timbangan-supplier/timbangan", icon: Truck },
-          { title: "PB", url: "/dashboard/pt-pks/timbangan-supplier/pb-harian", icon: Clipboard },
+          
+          { title: "Timbangan", url: "/dashboard/pt-pks/timbangan-supplier/pb-harian", icon: Clipboard },
+          { title: "PB", url: "/dashboard/pt-pks/timbangan-supplier/timbangan", icon: Truck },
           { title: "Approve PB", url: "/dashboard/pt-pks/timbangan-supplier/approve-pb", icon: Check}
         ] 
       },

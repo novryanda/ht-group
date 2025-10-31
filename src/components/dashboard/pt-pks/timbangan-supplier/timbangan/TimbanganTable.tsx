@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { Save, RefreshCw, CheckCircle2, CalendarIcon, Download } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
+import { Checkbox } from "~/components/ui/checkbox";
 import * as XLSX from "xlsx";
 import {
   Select,
@@ -109,23 +110,27 @@ export function TimbanganTable({ companyId }: { companyId: string }) {
   const [editState, setEditState] = useState<EditState>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  const [posting, setPosting] = useState<string | null>(null);
+  const [bulkPosting, setBulkPosting] = useState(false);
+  const [selectedTickets, setSelectedTickets] = useState<Set<string>>(new Set());
   
   // Filters
-  const [startDate, setStartDate] = useState<Date>();
-  const [endDate, setEndDate] = useState<Date>();
-  const [statusFilter, setStatusFilter] = useState<string>("DRAFT");
+  const [selectedDate, setSelectedDate] = useState<Date>();
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
   // Fetch tickets
   useEffect(() => {
     void fetchTickets();
-  }, [startDate, endDate, statusFilter]);
+  }, [selectedDate, statusFilter]);
 
   const fetchTickets = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ companyId });
-      if (startDate) params.set("startDate", format(startDate, "yyyy-MM-dd"));
-      if (endDate) params.set("endDate", format(endDate, "yyyy-MM-dd"));
+      if (selectedDate) {
+        params.set("startDate", format(selectedDate, "yyyy-MM-dd"));
+        params.set("endDate", format(selectedDate, "yyyy-MM-dd"));
+      }
       if (statusFilter && statusFilter !== "ALL") {
         params.set("status", statusFilter);
       }
@@ -231,6 +236,89 @@ export function TimbanganTable({ companyId }: { companyId: string }) {
     }
   };
 
+  // Post a ticket (send to Approve PB)
+  const postTicket = async (ticket: Ticket) => {
+    if (ticket.status !== "DRAFT") return;
+    if (ticket.totalPembayaranSupplier <= 0) {
+      toast.error("Total pembayaran belum valid. Simpan harga terlebih dahulu.");
+      return;
+    }
+
+    setPosting(ticket.id);
+    try {
+      const res = await fetch(`/api/pt-pks/timbangan/${ticket.id}/post`, {
+        method: "POST",
+      });
+      const result = (await res.json()) as { success: boolean; message?: string };
+      if (result.success) {
+        toast.success(result.message ?? "Berhasil posting tiket");
+        await fetchTickets();
+      } else {
+        toast.error(result.message ?? "Gagal posting tiket");
+      }
+    } catch (error) {
+      toast.error("Error saat posting tiket");
+      console.error(error);
+    } finally {
+      setPosting(null);
+    }
+  };
+
+  // Bulk post tickets
+  const bulkPostTickets = async () => {
+    const selectedIds = Array.from(selectedTickets).filter((id) => {
+      const ticket = tickets.find((t) => t.id === id);
+      return ticket?.status === "DRAFT" && ticket.totalPembayaranSupplier > 0;
+    });
+
+    if (selectedIds.length === 0) {
+      toast.error("Pilih tiket DRAFT dengan total pembayaran valid untuk posting");
+      return;
+    }
+
+    setBulkPosting(true);
+    try {
+      const res = await fetch(`/api/pt-pks/timbangan/bulk-post`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticketIds: selectedIds }),
+      });
+      const result = (await res.json()) as { success: boolean; message?: string; data?: { success: number; failed: number } };
+      if (result.success) {
+        const { success, failed } = result.data ?? { success: 0, failed: 0 };
+        toast.success(`${success} tiket berhasil diposting${failed > 0 ? `, ${failed} gagal` : ""}`);
+        setSelectedTickets(new Set());
+        await fetchTickets();
+      } else {
+        toast.error(result.message ?? "Gagal bulk posting");
+      }
+    } catch (error) {
+      toast.error("Error saat bulk posting");
+      console.error(error);
+    } finally {
+      setBulkPosting(false);
+    }
+  };
+
+  const toggleTicketSelection = (ticketId: string) => {
+    const newSelection = new Set(selectedTickets);
+    if (newSelection.has(ticketId)) {
+      newSelection.delete(ticketId);
+    } else {
+      newSelection.add(ticketId);
+    }
+    setSelectedTickets(newSelection);
+  };
+
+  const toggleSelectAll = () => {
+    const draftTickets = tickets.filter((t) => t.status === "DRAFT");
+    if (selectedTickets.size === draftTickets.length) {
+      setSelectedTickets(new Set());
+    } else {
+      setSelectedTickets(new Set(draftTickets.map((t) => t.id)));
+    }
+  };
+
   const exportToExcel = () => {
     if (tickets.length === 0) {
       toast.error("Tidak ada data untuk diexport");
@@ -323,9 +411,9 @@ export function TimbanganTable({ companyId }: { companyId: string }) {
     const range = XLSX.utils.decode_range(worksheet['!ref'] ?? 'A1');
     
     // Generate filename with date and status filter
-    const today = new Date().toISOString().split("T")[0];
+    const dateSuffix = selectedDate ? format(selectedDate, "yyyyMMdd") : new Date().toISOString().split("T")[0];
     const statusSuffix = statusFilter !== "ALL" ? `-${statusFilter.toLowerCase()}` : "";
-    const filename = `timbangan${statusSuffix}-${today}.xlsx`;
+    const filename = `timbangan${statusSuffix}-${dateSuffix}.xlsx`;
 
     XLSX.writeFile(workbook, filename);
     toast.success(`Data berhasil diexport! (${tickets.length} rows + Total)`);
@@ -357,19 +445,19 @@ export function TimbanganTable({ companyId }: { companyId: string }) {
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-4">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Tanggal Mulai</label>
+          <label className="text-sm font-medium">Tanggal</label>
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className="w-[180px] justify-start text-left font-normal">
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {startDate ? format(startDate, "dd/MM/yyyy") : "Pilih tanggal"}
-            </Button>
+                {selectedDate ? format(selectedDate, "dd/MM/yyyy") : "Pilih tanggal"}
+              </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
               <Calendar
                 mode="single"
-                selected={startDate}
-                onSelect={setStartDate}
+                selected={selectedDate}
+                onSelect={setSelectedDate}
                 initialFocus
               />
             </PopoverContent>
@@ -377,39 +465,19 @@ export function TimbanganTable({ companyId }: { companyId: string }) {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">Tanggal Akhir</label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-[180px] justify-start text-left font-normal">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {endDate ? format(endDate, "dd/MM/yyyy") : "Pilih tanggal"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={endDate}
-                onSelect={setEndDate}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-            </div>
-
-        <div className="space-y-2">
           <label className="text-sm font-medium">Status</label>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[180px]">
               <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
+            </SelectTrigger>
+            <SelectContent>
               <SelectItem value="ALL">Semua</SelectItem>
-                <SelectItem value="DRAFT">Draft</SelectItem>
-                <SelectItem value="APPROVED">Approved</SelectItem>
-                <SelectItem value="POSTED">Posted</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              <SelectItem value="DRAFT">Draft</SelectItem>
+              <SelectItem value="POSTED">Posted</SelectItem>
+              <SelectItem value="APPROVED">Approved</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
         <div className="space-y-2">
           <label className="text-sm font-medium opacity-0">Action</label>
@@ -417,6 +485,17 @@ export function TimbanganTable({ companyId }: { companyId: string }) {
             <Button onClick={fetchTickets} variant="outline">
               <RefreshCw className="mr-2 h-4 w-4" />
               Refresh
+            </Button>
+            <Button 
+              onClick={bulkPostTickets} 
+              disabled={selectedTickets.size === 0 || bulkPosting}
+            >
+              {bulkPosting ? (
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+              )}
+              Bulk Posting ({selectedTickets.size})
             </Button>
             <Button 
               onClick={exportToExcel} 
@@ -435,6 +514,12 @@ export function TimbanganTable({ companyId }: { companyId: string }) {
               <Table>
                 <TableHeader>
             <TableRow>
+              <TableHead className="w-[50px]">
+                <Checkbox
+                  checked={selectedTickets.size > 0 && tickets.filter((t) => t.status === "DRAFT").every((t) => selectedTickets.has(t.id))}
+                  onCheckedChange={toggleSelectAll}
+                />
+              </TableHead>
               <TableHead className="w-[120px]">No. Seri</TableHead>
               <TableHead className="w-[110px]">Tanggal</TableHead>
               <TableHead className="w-[100px]">Plat No</TableHead>
@@ -455,7 +540,7 @@ export function TimbanganTable({ companyId }: { companyId: string }) {
                 <TableBody>
             {tickets.length === 0 ? (
                     <TableRow>
-                <TableCell colSpan={15} className="text-center text-muted-foreground">
+                <TableCell colSpan={16} className="text-center text-muted-foreground">
                   Tidak ada data tiket. Buat tiket di menu PB Harian terlebih dahulu.
                       </TableCell>
                     </TableRow>
@@ -469,6 +554,14 @@ export function TimbanganTable({ companyId }: { companyId: string }) {
 
                 return (
                   <TableRow key={ticket.id}>
+                    <TableCell>
+                      {isEditable && (
+                        <Checkbox
+                          checked={selectedTickets.has(ticket.id)}
+                          onCheckedChange={() => toggleTicketSelection(ticket.id)}
+                        />
+                      )}
+                    </TableCell>
                     <TableCell className="font-mono text-sm">
                       {ticket.noSeri}
                     </TableCell>
@@ -542,26 +635,44 @@ export function TimbanganTable({ companyId }: { companyId: string }) {
                     </TableCell>
                     <TableCell>{getStatusBadge(ticket.status)}</TableCell>
                     <TableCell>
-                      {isEditable && (
-                        <Button
-                          onClick={() => void savePricing(ticket.id)}
-                          disabled={isSaving}
-                          size="sm"
-                        >
-                          {isSaving ? (
-                            "..."
-                          ) : (
-                            <>
-                              <Save className="mr-1 h-3 w-3" />
-                              Simpan
-                            </>
-                          )}
-                        </Button>
-                      )}
-                      {ticket.status === "POSTED" && (
-                        <CheckCircle2 className="h-5 w-5 text-green-600" />
-                      )}
-                          </TableCell>
+                      <div className="flex items-center gap-2">
+                        {isEditable && (
+                          <Button
+                            onClick={() => void savePricing(ticket.id)}
+                            disabled={isSaving}
+                            size="sm"
+                            variant="outline"
+                          >
+                            {isSaving ? (
+                              "..."
+                            ) : (
+                              <>
+                                <Save className="mr-1 h-3 w-3" />
+                                Simpan
+                              </>
+                            )}
+                          </Button>
+                        )}
+                        {ticket.status === "DRAFT" && (
+                          <Button
+                            onClick={() => void postTicket(ticket)}
+                            disabled={posting === ticket.id}
+                            size="sm"
+                          >
+                            {posting === ticket.id ? (
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                Posting
+                              </>
+                            )}
+                          </Button>
+                        )}
+                        {ticket.status === "POSTED" && (
+                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        )}
+                      </div>
+                    </TableCell>
                       </TableRow>
                 );
               })

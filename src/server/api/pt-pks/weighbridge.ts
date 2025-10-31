@@ -55,6 +55,95 @@ export class WeighbridgeAPI {
   }
 
   /**
+   * Post ticket (move to POSTED)
+   */
+  static async postTicket(id: string): Promise<APIResponse> {
+    try {
+      const ticket = await WeighbridgeService.postTicket(id);
+      return {
+        success: true,
+        data: ticket,
+        message: "Tiket berhasil diposting",
+        statusCode: 200,
+      };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  /**
+   * Bulk post tickets
+   */
+  static async bulkPostTickets(ticketIds: string[]): Promise<APIResponse> {
+    try {
+      const result = await WeighbridgeService.bulkPostTickets(ticketIds);
+      return {
+        success: true,
+        data: result,
+        message: `${result.success} tiket berhasil diposting${result.failed > 0 ? `, ${result.failed} gagal` : ""}`,
+        statusCode: 200,
+      };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  /**
+   * List tickets for approval (all statuses, can be filtered)
+   */
+  static async listForApproval(query: unknown): Promise<APIResponse> {
+    try {
+      const validated = weighbridgeQuerySchema.parse(query) as WeighbridgeQueryDTO;
+      // Don't force status filter - show all statuses unless filtered
+      const result = await WeighbridgeService.getList(validated);
+      return {
+        success: true,
+        data: result.data,
+        pagination: result.pagination,
+        statusCode: 200,
+      };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  /**
+   * Approve or reject posted ticket
+   */
+  static async approveTicket(id: string, approved: boolean, createdById: string, warehouseId?: string): Promise<APIResponse> {
+    try {
+      const result = await WeighbridgeService.approveTicket(id, approved, createdById, warehouseId);
+      return {
+        success: result.success,
+        message: result.message,
+        statusCode: 200,
+      };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  /**
+   * Bulk approve tickets
+   */
+  static async bulkApproveTickets(
+    ticketData: Array<{ ticketId: string; warehouseId: string }>,
+    createdById: string
+  ): Promise<APIResponse> {
+    try {
+      const result = await WeighbridgeService.bulkApproveTickets(ticketData, createdById);
+      return {
+        success: true,
+        data: result,
+        message: `${result.success} tiket berhasil di-approve${result.failed > 0 ? `, ${result.failed} gagal` : ""}`,
+        statusCode: 200,
+      };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  /**
    * Update PB Harian fields (PATCH)
    */
   static async updatePBFields(id: string, data: unknown, companyId: string): Promise<APIResponse> {
